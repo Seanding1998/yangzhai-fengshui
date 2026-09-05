@@ -727,6 +727,166 @@ XUANKONG_WUXING = {
 WUXING_SHENG = {"水": "木", "木": "火", "火": "土", "土": "金", "金": "水"}   # 我生
 WUXING_KE = {"水": "火", "火": "金", "金": "木", "木": "土", "土": "水"}      # 我克
 
+# ═══════════════════════════════════════════════════════════════
+#  正体五行造命（补龙扶山相主）
+# ═══════════════════════════════════════════════════════════════
+
+NAYIN60 = {"甲子": "海中金", "乙丑": "海中金", "丙寅": "炉中火", "丁卯": "炉中火",
+           "戊辰": "大林木", "己巳": "大林木", "庚午": "路旁土", "辛未": "路旁土",
+           "壬申": "剑锋金", "癸酉": "剑锋金", "甲戌": "山头火", "乙亥": "山头火",
+           "丙子": "涧下水", "丁丑": "涧下水", "戊寅": "城头土", "己卯": "城头土",
+           "庚辰": "白蜡金", "辛巳": "白蜡金", "壬午": "杨柳木", "癸未": "杨柳木",
+           "甲申": "泉中水", "乙酉": "泉中水", "丙戌": "屋上土", "丁亥": "屋上土",
+           "戊子": "霹雳火", "己丑": "霹雳火", "庚寅": "松柏木", "辛卯": "松柏木",
+           "壬辰": "长流水", "癸巳": "长流水", "甲午": "沙中金", "乙未": "沙中金",
+           "丙申": "山下火", "丁酉": "山下火", "戊戌": "平地木", "己亥": "平地木",
+           "庚子": "壁上土", "辛丑": "壁上土", "壬寅": "金箔金", "癸卯": "金箔金",
+           "甲辰": "覆灯火", "乙巳": "覆灯火", "丙午": "天河水", "丁未": "天河水",
+           "戊申": "大驿土", "己酉": "大驿土", "庚戌": "钗钏金", "辛亥": "钗钏金",
+           "壬子": "桑柘木", "癸丑": "桑柘木", "甲寅": "大溪水", "乙卯": "大溪水",
+           "丙辰": "沙中土", "丁巳": "沙中土", "戊午": "天上火", "己未": "天上火",
+           "庚申": "石榴木", "辛酉": "石榴木", "壬戌": "大海水", "癸亥": "大海水"}
+# 罗盘正五行（二十四山）
+ZHENGTI_WX_24 = {"壬": "水", "子": "水", "癸": "水", "亥": "水",
+                 "寅": "木", "甲": "木", "卯": "木", "乙": "木", "巽": "木",
+                 "巳": "火", "丙": "火", "午": "火", "丁": "火",
+                 "申": "金", "庚": "金", "酉": "金", "辛": "金", "乾": "金",
+                 "辰": "土", "戌": "土", "丑": "土", "未": "土", "坤": "土", "艮": "土"}
+GAN_WX = {"甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
+          "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"}
+ZHI_WX = {"子": "水", "丑": "土", "寅": "木", "卯": "木", "辰": "土", "巳": "火",
+          "午": "火", "未": "土", "申": "金", "酉": "金", "戌": "土", "亥": "水"}
+TIANREN_GUI = {"甲": ("丑", "未"), "戊": ("丑", "未"), "庚": ("丑", "未"),
+               "乙": ("子", "申"), "己": ("子", "申"),
+               "丙": ("亥", "酉"), "丁": ("亥", "酉"),
+               "壬": ("卯", "巳"), "癸": ("卯", "巳"), "辛": ("午", "寅")}
+GAN_LU = {"甲": "寅", "乙": "卯", "丙": "巳", "丁": "午", "戊": "巳",
+          "己": "午", "庚": "申", "辛": "酉", "壬": "亥", "癸": "子"}
+YIMA = {"申": "寅", "子": "寅", "辰": "寅", "寅": "申", "午": "申", "戌": "申",
+        "巳": "亥", "酉": "亥", "丑": "亥", "亥": "巳", "卯": "巳", "未": "巳"}
+GAN_CHONG = {"甲": "庚", "庚": "甲", "乙": "辛", "辛": "乙",
+             "丙": "壬", "壬": "丙", "丁": "癸", "癸": "丁"}
+SANHE_GROUPS = [("申", "子", "辰"), ("寅", "午", "戌"), ("巳", "酉", "丑"), ("亥", "卯", "未")]
+
+# 董公择日数据（scripts/donggong_data.json，由《董公選擇日要覽》全文解析生成）
+YUE_NAME_BY_ZHI = {"寅": "正月", "卯": "二月", "辰": "三月", "巳": "四月", "午": "五月", "未": "六月",
+                   "申": "七月", "酉": "八月", "戌": "九月", "亥": "十月", "子": "十一月", "丑": "十二月"}
+try:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "donggong_data.json"),
+              encoding="utf-8") as _f_dg:
+        _DG = json.load(_f_dg)
+    DONGGONG = _DG.get("月", {})
+    DONGGONG_XIONG = _DG.get("凶神月表", {})
+except Exception:
+    DONGGONG, DONGGONG_XIONG = {}, {}
+
+
+def _person_year_gz(birth):
+    """主命年柱：完整日期用 sxtwl 立春分界；仅年份按公历年近似（民俗派）。"""
+    if HAS_SXTWL and "-" in str(birth):
+        y, m, d = [int(x) for x in str(birth).split("-")[:3]]
+        res = year_gz_via_sxtwl(y, m, d, True)
+        if res and res[1]:
+            return res[0], True
+    y = int(str(birth).split("-")[0])
+    i = (y - 1984) % 60
+    return TIANGAN[i % 10] + DIZHI[i % 12], False
+
+
+def zaoming_analysis(sitting, pillars, persons=None):
+    """正体五行造命：补龙扶山（阳宅以坐山论）、冲山检查、相主（纳音生克/冲命/贵人禄马到课）、格局亮点。"""
+    zuo, _xiang = parse_sitting(sitting)
+    shan_wx = ZHENGTI_WX_24[zuo]
+    counts = {"生山": 0, "同山": 0, "山生（泄）": 0, "山克（耗）": 0, "克山": 0}
+    for gz in pillars.values():
+        for ch in gz:
+            wx = GAN_WX.get(ch) or ZHI_WX.get(ch)
+            if wx is None:
+                continue
+            if WUXING_SHENG[wx] == shan_wx:
+                counts["生山"] += 1
+            elif wx == shan_wx:
+                counts["同山"] += 1
+            elif WUXING_SHENG[shan_wx] == wx:
+                counts["山生（泄）"] += 1
+            elif WUXING_KE[shan_wx] == wx:
+                counts["山克（耗）"] += 1
+            else:
+                counts["克山"] += 1
+    ji = counts["生山"] + counts["同山"]
+    xiong = counts["克山"] + counts["山生（泄）"]
+    fushan = (f"坐山{zuo}属{shan_wx}（正五行）：课八字生扶/比和 {ji} 字，"
+              f"克泄耗 {xiong} 字 → {'扶山得力' if ji >= 5 and counts['克山'] == 0 else ('扶山尚可' if ji > xiong else '扶山无力，宜另择')}")
+    # 冲山
+    chong_shan = []
+    if zuo in DIZHI:
+        chong = DIZHI[(DIZHI.index(zuo) + 6) % 12]
+        chong_shan = [f"{k}柱支{gz[1]}" for k, gz in pillars.items() if gz[1] == chong]
+    elif zuo in GAN_CHONG:
+        chong_gan = GAN_CHONG[zuo]
+        chong_shan = [f"{k}柱干{gz[0]}" for k, gz in pillars.items() if gz[0] == chong_gan]
+    else:
+        chong_shan = []
+        fushan += "；四维山无支冲，忌对宫山向相冲（从略）"
+    # 相主
+    persons_out = []
+    for b in (persons or []):
+        try:
+            ygz_b, precise = _person_year_gz(b)
+        except (ValueError, TypeError) as e:
+            persons_out.append({"birth": str(b), "error": str(e)})
+            continue
+        zhi_b = ygz_b[1]
+        entry = {"birth": str(b), "年柱": ygz_b, "纳音": NAYIN60.get(ygz_b, "?"),
+                 "立春精确": precise}
+        if zhi_b in DIZHI:
+            chong_ming = DIZHI[(DIZHI.index(zhi_b) + 6) % 12]
+            entry["冲命"] = [f"{k}柱支{ch}" for k, gz in pillars.items() if gz[1] == chong_ming]
+        ming_wx = NAYIN60.get(ygz_b, "?")[-1]
+        rel = []
+        for k, gz in pillars.items():
+            ny = NAYIN60.get(gz)
+            if not ny:
+                continue
+            w = ny[-1]
+            if WUXING_SHENG[w] == ming_wx:
+                rel.append(f"{k}柱{ny}生主命（吉）")
+            elif w == ming_wx:
+                rel.append(f"{k}柱{ny}比和（吉）")
+            elif WUXING_KE[w] == ming_wx:
+                rel.append(f"{k}柱{ny}克主命（凶）")
+        entry["纳音生克"] = rel
+        # 贵人禄马到课
+        gui = TIANREN_GUI.get(ygz_b[0], ())
+        lu = GAN_LU.get(ygz_b[0])
+        ma = YIMA.get(zhi_b)
+        zhis = [gz[1] for gz in pillars.values()]
+        entry["贵人禄马到课"] = ([f"天乙贵人{g}" for g in gui if g in zhis]
+                                + ([f"禄元{lu}"] if lu in zhis else [])
+                                + ([f"驿马{ma}"] if ma in zhis else []))
+        persons_out.append(entry)
+    # 格局亮点
+    gans = [gz[0] for gz in pillars.values()]
+    zhis = [gz[1] for gz in pillars.values()]
+    highlights = []
+    top_gan = max(set(gans), key=gans.count)
+    if gans.count(top_gan) == 4:
+        highlights.append(f"天干一气纯{top_gan}（造命特格，须审五行不悖）")
+    elif gans.count(top_gan) == 3:
+        highlights.append(f"天干三朋（三{top_gan}）")
+    if len(set(zhis)) == 1:
+        highlights.append(f"地支一气（支纯{zhis[0]}）")
+    zset = set(zhis)
+    for grp in SANHE_GROUPS:
+        if set(grp) <= zset:
+            highlights.append(f"地支三合{(''.join(grp))}局（{ZHI_WX[grp[0]]}）")
+            break
+    result = {"坐山": zuo, "坐山五行": shan_wx, "扶山": fushan, "冲山": chong_shan,
+              "课八字五行": counts, "相主": persons_out, "格局亮点": highlights}
+    if chong_shan:
+        result["综合提示"] = "⚠ 冲山/冲命为大忌，此课不可用，请改期"
+    return result
+
 
 def month_star(year_branch, month_branch):
     """月家紫白入中星：正月（寅月）起例逐月递减。"""
@@ -838,8 +998,9 @@ def xk_relation(other_wx, other_yun, day_wx, day_yun):
     return {"关系": rel + (("；" + yun_rel) if yun_rel else ""), "吉": ji}
 
 
-def riche_report(y, m, d, hour=None, sitting=None):
-    """日课择吉总输出。需 sxtwl。"""
+def riche_report(y, m, d, hour=None, sitting=None, persons=None):
+    """日课择吉总输出（紫白+建除+董公+正体五行造命）。需 sxtwl。"""
+    import re as _re
     out = {"date": f"{y:04d}-{m:02d}-{d:02d}", "hour": hour}
     if not HAS_SXTWL:
         out["error"] = "日课择吉需要 sxtwl（pip install sxtwl）提供四柱与节气"
@@ -896,7 +1057,7 @@ def riche_report(y, m, d, hour=None, sitting=None):
                            "对日辰评估": evals,
                            "来源注": "六十甲子玄空五行卦运表为单源资料，重大事项宜另核"}
 
-    # 综合提示
+    # 综合提示（先初始化，供董公/造命块追加）
     tips = []
     if jc["月破"]:
         tips.append("⚠ 月破日，大事勿用")
@@ -909,6 +1070,42 @@ def riche_report(y, m, d, hour=None, sitting=None):
         tips.append("建除成/定/开，利入宅、开市、安床等喜庆事")
     elif jc["神"] in ("破", "闭"):
         tips.append("建除破/闭，不宜入宅、动土、开业")
+
+    # 董公择日（月建+建除断语；干支命中句；月三煞前奏）
+    yue_name = YUE_NAME_BY_ZHI[DIZHI[mgz.dz]]
+    if DONGGONG:
+        blk = DONGGONG.get(yue_name, {})
+        d_entry = blk.get("断", {}).get(jc["神"])
+        if d_entry:
+            hits = [s.strip() for s in _re.split(r"[。；]", d_entry["断语"]) if pillars["日"] in s]
+            out["董公"] = {"月": yue_name, "神": jc["神"], "断语": d_entry["断语"],
+                           "干支命中句": hits, "月前奏": blk.get("前奏", "")}
+            if "来源" in d_entry:
+                out["董公"]["来源"] = d_entry["来源"]
+    # 附录凶神日（往亡/受死/月厌…按月支对照）
+    xiong_hits = []
+    for xname, tbl in DONGGONG_XIONG.items():
+        if tbl.get("月", {}).get(yue_name) == day_zhi:
+            xiong_hits.append(f"{xname}（{tbl.get('说明','')}）")
+    if xiong_hits:
+        out["凶神日"] = xiong_hits
+        tips.append("⚠ 董公凶神日：" + "；".join(xiong_hits))
+
+    # 正体五行造命（补龙扶山相主）
+    if sitting:
+        try:
+            out["造命"] = zaoming_analysis(sitting, pillars, persons)
+            zm = out["造命"]
+            tips.append(zm["扶山"])
+            if zm["冲山"]:
+                tips.append("⚠ " + "、".join(zm["冲山"]) + "：冲坐山，此课不可用")
+            for p in zm["相主"]:
+                if p.get("冲命"):
+                    tips.append(f"⚠ 主命{p.get('年柱')}被课冲（{'、'.join(p['冲命'])}），不可用")
+                elif p.get("贵人禄马到课"):
+                    tips.append(f"主命{p.get('年柱')}：{'、'.join(p['贵人禄马到课'])}到课，催贵（吉）")
+        except ValueError as e:
+            out["造命"] = {"error": str(e)}
     if sitting:
         zuo, _xiang = parse_sitting(sitting)
         ss_x = shoushan_chusha(_xiang)
@@ -1551,6 +1748,27 @@ def selftest():
     check("建除月破=破神", jianchu_day("申", "寅")["月破"] is True)
     check("六十甲子表全覆盖", len(XUANKONG_WUXING) == 60)
 
+    print("── 正体五行造命/董公 ──")
+    check("纳音60抽查", NAYIN60["甲子"] == "海中金" and NAYIN60["戊午"] == "天上火"
+          and NAYIN60["壬戌"] == "大海水" and len(NAYIN60) == 60)
+    check("24山正五行抽查", ZHENGTI_WX_24["壬"] == "水" and ZHENGTI_WX_24["乾"] == "金"
+          and ZHENGTI_WX_24["巽"] == "木" and ZHENGTI_WX_24["坤"] == "土" and len(ZHENGTI_WX_24) == 24)
+    check("天乙贵人表", TIANREN_GUI["甲"] == ("丑", "未") and TIANREN_GUI["辛"] == ("午", "寅"))
+    zm = zaoming_analysis("子山午向", {"年": "甲子", "月": "丙子", "日": "庚午", "时": "壬寅"}, [])
+    check("造命冲山（子山课见午）", any("午" in c for c in zm["冲山"]), str(zm["冲山"]))
+    check("造命扶山统计(生1同3泄2耗2克0)", zm["课八字五行"]["生山"] == 1 and zm["课八字五行"]["同山"] == 3
+          and zm["课八字五行"]["克山"] == 0, str(zm["课八字五行"]))
+    zm2 = zaoming_analysis("子山午向", {"年": "庚子", "月": "戊子", "日": "甲申", "时": "壬申"}, ["1986"])
+    p0 = zm2["相主"][0]
+    check("主命1986丙寅+驿马申到课", p0["年柱"] == "丙寅" and p0["纳音"] == "炉中火"
+          and "驿马申" in p0["贵人禄马到课"], str(p0)[:140])
+    if DONGGONG:
+        check("董公12月×12神完整", len(DONGGONG) == 12 and all(len(b["断"]) == 12 for b in DONGGONG.values()))
+        check("董公十月建亥断语", "不利起造" in DONGGONG["十月"]["断"]["建"]["断语"])
+        check("往亡表正月在寅", DONGGONG_XIONG["往亡日"]["月"].get("正月") == "寅")
+        r = riche_report(2026, 9, 10, 9, "子山午向", ["1986"])
+        check("riche输出含董公与造命", "董公" in r and "造命" in r)
+
     print("")
     if errors:
         print(f"❌ {len(errors)} 项失败：{errors}")
@@ -1592,10 +1810,11 @@ def main():
     p.add_argument("--facing", help="现成宅的向山，用于吉凶判定")
     p.add_argument("--period", type=int, choices=[1, 2, 3, 4, 6, 7, 8, 9], help="当运，用于河图当旺龙判断")
 
-    p = sub.add_parser("riche", help="日课择吉（玄空紫白+建除+通用宜忌，需 sxtwl）")
+    p = sub.add_parser("riche", help="日课择吉（紫白+建除+董公+正体五行造命，需 sxtwl）")
     p.add_argument("--date", required=True, help="YYYY-MM-DD")
     p.add_argument("--hour", type=int, help="24小时制，可选（给出生时柱与时星）")
-    p.add_argument("--sitting", help="坐向，可选（给出向首收山出煞提示）")
+    p.add_argument("--sitting", help="坐向，可选（收山出煞+正体五行造命扶山/冲山）")
+    p.add_argument("--person", action="append", help="主命出生年或 YYYY-MM-DD（可多次），相主+贵人禄马到课")
 
     p = sub.add_parser("all", help="完整分析")
     p.add_argument("--house", required=True, help="house.json 路径")
@@ -1718,7 +1937,7 @@ def main():
         except ValueError as e:
             print(f"❌ 日期无效：{e}")
             sys.exit(1)
-        res2 = riche_report(yy, mm, dd, args.hour, args.sitting)
+        res2 = riche_report(yy, mm, dd, args.hour, args.sitting, args.person)
         if "error" in res2:
             print(f"❌ {res2['error']}")
             sys.exit(1)
@@ -1732,11 +1951,39 @@ def main():
         print(f"建除：{jc['神']}（{jc['级']}）" + ("　⚠月破日" if res2["月破日"] else ""))
         print(f"{'⚠ 岁破日　' if res2['岁破日'] else ''}{res2['日冲']}　{'⚠ ' + res2['四离四绝'] if res2['四离四绝'] else ''}")
         print(f"彭祖百忌：{'；'.join(res2['彭祖百忌'])}")
+        if "董公" in res2:
+            dge = res2["董公"]
+            print(f"董公择日（{dge['月']}月{dge['神']}日）：{dge['断语']}")
+            if dge.get("干支命中句"):
+                for h in dge["干支命中句"]:
+                    print(f"    → 本日干支命中：{h}")
+            if dge.get("月前奏"):
+                print(f"    （月令：{dge['月前奏']}）")
+        for x in res2.get("凶神日", []):
+            print(f"    ⚠ {x}")
         xk = res2.get("玄空五行")
         if xk:
             print(f"玄空五行：日{xk['日']['干支']}属{xk['日']['五行']}（卦运{xk['日']['卦运']}）")
             for k, v in xk["对日辰评估"].items():
                 print(f"  {k}柱{v['干支']}（{v['玄空五行']}，运{v['卦运']}）→ {v['关系']}")
+        if "造命" in res2:
+            zm = res2["造命"]
+            if "error" in zm:
+                print(f"造命：⚠ {zm['error']}")
+            else:
+                print(f"正体五行造命：{zm['扶山']}")
+                if zm["冲山"]:
+                    print(f"  ⚠ 冲山：{'、'.join(zm['冲山'])}")
+                for p in zm["相主"]:
+                    if "error" in p:
+                        print(f"  主命 {p['birth']}：⚠ {p['error']}")
+                        continue
+                    print(f"  主命{p['birth']} → 年柱{p['年柱']}（{p['纳音']}）"
+                          + ("　⚠冲命" if p.get("冲命") else "")
+                          + ("；" + "；".join(p["贵人禄马到课"]) if p.get("贵人禄马到课") else "；贵人禄马未到课")
+                          + ("；" + "；".join(p["纳音生克"]) if p.get("纳音生克") else ""))
+                if zm["格局亮点"]:
+                    print("  格局亮点：" + "；".join(zm["格局亮点"]))
         for t in res2["提示"]:
             print(f"  · {t}")
         return
