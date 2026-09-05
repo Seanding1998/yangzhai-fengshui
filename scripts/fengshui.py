@@ -1750,6 +1750,12 @@ def selftest():
           and XUANKONG_WUXING["癸亥"] == ("水", 6) and XUANKONG_WUXING["乙酉"] == ("金", 4))
     yun1 = sorted(k for k, (w, y) in XUANKONG_WUXING.items() if y == 1)
     check("卦运1恰为八纯卦", yun1 == sorted(XK_CHUN_GUA), str(yun1))
+    mirror = all(XUANKONG_WUXING["甲子" + "乙丑丙寅丁卯戊辰己巳庚午辛未壬申癸酉"[i*2:i*2+2]][1]
+                 == XUANKONG_WUXING["甲子" + "乙丑丙寅丁卯戊辰己巳庚午辛未壬申癸酉"[i*2:i*2+2]][1] for i in range(0))
+    pairs = [("甲子", "甲午"), ("乙丑", "乙未"), ("丙寅", "丙申"), ("丁卯", "丁酉"),
+             ("戊辰", "戊戌"), ("己巳", "己亥"), ("庚午", "庚子"), ("辛未", "辛丑"),
+             ("壬申", "壬寅"), ("癸酉", "癸卯")]
+    check("玄空数理六旬镜像对称", all(XUANKONG_WUXING[a][1] == XUANKONG_WUXING[b][1] for a, b in pairs))
     check("建除月破=破神", jianchu_day("申", "寅")["月破"] is True)
     check("六十甲子表全覆盖", len(XUANKONG_WUXING) == 60)
 
