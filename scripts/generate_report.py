@@ -201,6 +201,25 @@ def render(data):
     taishui = an["太岁"]
     suipo = an["岁破"]
     warn_cards = "".join(f'<div class="card">⚠ {esc(w)}</div>' for w in st.get("warnings") or [])
+    ss = fx.get("收山出煞")
+    ss_line = ""
+    if ss:
+        ss_line = (f'<p><b>收山出煞</b>（中州派）：向首{esc(ss["向首"]["山"])}属{esc(ss["向首"]["诀"])}——'
+                   f'{esc(ss["向首"]["宜"])}；坐山{esc(ss["坐山"]["山"])}属{esc(ss["坐山"]["诀"])}</p>')
+    pl = res.get("pailong")
+    pl_section = ""
+    if isinstance(pl, dict) and "error" in pl:
+        pl_section = f'<div class="card">⚠ 排龙：{esc(pl["error"])}</div>'
+    elif isinstance(pl, dict):
+        stars_text = "　".join(f'{esc(g)}宫{esc(s)}' for g, s in pl["十二宫"].items())
+        pl_section = f'''<h2>排龙诀（中州派）</h2>
+<div class="card">
+<p>水口方{esc(pl["水口方山"])} → 来龙{esc(pl["来龙"])}（{esc(pl["行向"])}）；
+宅向首{esc(pl["向首宫"])}宫得<b>{esc(pl["龙星"])}龙</b>（{esc(pl["吉凶"])}，五行{esc(pl["龙五行"])}）</p>
+<p>{esc(pl["说明"])}</p>
+<p class="tip">{stars_text}</p>
+<p class="tip">五吉龙：贪狼/巨门/武曲/左辅/右弼，七凶龙：破军/廉贞/文曲/禄存；吉龙宫内二山可作向首选向，仍须配后天星盘与形峦；排龙出卦（如丙巳兼线）此宅不可用。</p>
+</div>'''
 
     room_notes = con.get("room_notes") or []
     rn_html = ""
@@ -277,6 +296,7 @@ def render(data):
    <b>旺向星在</b>：{wx_pals}</p>
 <p><b>排盘说明</b>：</p><ul>{notes_list}</ul>
 <p><b>特殊格局</b>：{flags}</p>
+{ss_line}
 <p><b>城门宫</b>：{esc(cm_text) or '—'}</p>
 </div>
 
@@ -292,6 +312,8 @@ def render(data):
 {ext_html}
 </div>
 {rn_html}
+
+{pl_section}
 
 {annual_section}
 

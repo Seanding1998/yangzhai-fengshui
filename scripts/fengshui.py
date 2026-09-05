@@ -600,8 +600,323 @@ def annual_info(year):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  渲染
+#  排龙诀（中州派）
 # ═══════════════════════════════════════════════════════════════
+
+# 十二宫配山（地支本位 + 藏干之山）
+PALONG_PALACES = {
+    "子": ("子", "癸"), "丑": ("丑", "艮"), "寅": ("寅", "甲"), "卯": ("卯", "乙"),
+    "辰": ("辰", "巽"), "巳": ("巳", "丙"), "午": ("午", "丁"), "未": ("未", "坤"),
+    "申": ("申", "庚"), "酉": ("酉", "辛"), "戌": ("戌", "乾"), "亥": ("亥", "壬"),
+}
+PALONG_ORDER = list(PALONG_PALACES.keys())
+# 十二星曜固定序：1破军 2右弼 3廉贞 4破军 5武曲 6贪狼 7破军 8左辅 9文曲 10破军 11巨门 12禄存
+PALONG_STARS = ["破军", "右弼", "廉贞", "破军", "武曲", "贪狼",
+                "破军", "左辅", "文曲", "破军", "巨门", "禄存"]
+PALONG_JI = ("贪狼", "巨门", "武曲", "左辅", "右弼")   # 五吉
+PALONG_WUXING = {"贪狼": "木", "巨门": "土", "禄存": "土", "文曲": "水",
+                 "廉贞": "火", "武曲": "金", "破军": "金", "左辅": "土", "右弼": "土"}
+# 河图当运可用龙：一六运贪武、二七运巨破、三八运辅禄、四九运文弼
+PALONG_HEGUTU = {1: ("贪狼", "武曲"), 6: ("贪狼", "武曲"),
+                 2: ("巨门", "破军"), 7: ("巨门", "破军"),
+                 3: ("左辅", "禄存"), 8: ("左辅", "禄存"),
+                 4: ("文曲", "右弼"), 9: ("文曲", "右弼")}
+
+
+def palong_palace_of(mountain):
+    """二十四山 → 排龙十二宫。"""
+    for p, ms in PALONG_PALACES.items():
+        if mountain in ms:
+            return p
+    return None
+
+
+def palong_chart(long_mountain):
+    """来龙山 → (12宫排龙盘 {宫: 星}, 阴顺/阳逆)。
+    来龙对宫起破军；地支山属阴顺行，八干四维山属阳逆行。"""
+    palace = palong_palace_of(long_mountain)
+    if palace is None:
+        raise ValueError(f"{long_mountain} 不在二十四山内")
+    idx = PALONG_ORDER.index(palace)
+    is_yin = long_mountain in DIZHI
+    step = 1 if is_yin else -1
+    chart = {}
+    for k, star in enumerate(PALONG_STARS):
+        chart[PALONG_ORDER[(idx + 6 + step * k) % 12]] = star
+    return chart, ("阴顺行" if is_yin else "阳逆行")
+
+
+def palong_verdict(chart, xiang, period=None):
+    """现成宅：以向首所属宫的排龙星论吉凶。"""
+    p = palong_palace_of(xiang)
+    star = chart.get(p)
+    is_ji = star in PALONG_JI
+    hegu = PALONG_HEGUTU.get(period)
+    usable = is_ji or (hegu and star in hegu)
+    return {"向首宫": p, "龙星": star, "吉凶": "五吉龙" if is_ji else "七凶龙",
+            "当运可用": usable, "龙五行": PALONG_WUXING.get(star, "?"),
+            "说明": (f"{'五吉龙可用' if is_ji else '七凶龙本不宜用'}"
+                     f"{('；惟' + star + '为' + str(period) + '运河图当旺之龙，权可取用（仅一元运）') if (usable and not is_ji) else ''}"
+                     f"{'；五吉且当旺' if (is_ji and usable and hegu and star in hegu) else ''}")}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  收山出煞诀（中州派）
+# ═══════════════════════════════════════════════════════════════
+
+# 诀云：四墓乙辛丁癸山，艮坤寅申子午间。出煞山头一十四，总宜倾泻不宜拦。
+#       余外十山为收敛，须将生气秘牢关。
+CHU_SHA_MOUNTAINS = set("丑未辰戌乙辛丁癸艮坤寅申子午")   # 出煞十四山：宜开扬
+SHOU_SHAN_MOUNTAINS = set("壬甲卯巽巳丙庚酉乾亥")           # 收山十山：宜收敛
+
+
+def shoushan_chusha(mountain):
+    if mountain in CHU_SHA_MOUNTAINS:
+        return {"山": mountain, "诀": "出煞", "宜": "宜开扬：门宜开畅（或门旁多窗），门内不宜屏风阻拦，门外地势宜略低", "忌": "忌过度收敛藏气"}
+    return {"山": mountain, "诀": "收山", "宜": "宜收敛：门不宜过大，门内宜设玄关/屏风藏气，门外地势不宜过低", "忌": "忌开畅倾泻"}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  日课择吉（玄空紫白 + 建除 + 通用宜忌）
+# ═══════════════════════════════════════════════════════════════
+
+JIANCHU = ["建", "除", "满", "平", "定", "执", "破", "危", "成", "收", "开", "闭"]
+JIANCHU_HUANG = ("除", "危", "定", "执", "成", "开")   # 「除危定执黄……成开皆可用」
+JIANCHU_HEI = ("建", "满", "平", "收", "破", "闭")
+PENGZU_GAN = {"甲": "甲不开仓财物耗散", "乙": "乙不栽植千株不长", "丙": "丙不修灶必见灾殃",
+              "丁": "丁不剃头头必生疮", "戊": "戊不受田田主不祥", "己": "己不破券二比并亡",
+              "庚": "庚不经络织机虚张", "辛": "辛不合酱主人不尝", "壬": "壬不汲水更难提防",
+              "癸": "癸不词讼理弱敌强"}
+PENGZU_ZHI = {"子": "子不问卜自惹祸殃", "丑": "丑不冠带主不还乡", "寅": "寅不祭祀神鬼不尝",
+              "卯": "卯不穿井水泉不香", "辰": "辰不哭泣必主重丧", "巳": "巳不远行财物伏藏",
+              "午": "午不苫盖屋主更张", "未": "未不服药毒气入肠", "申": "申不安床鬼祟入房",
+              "酉": "酉不会客醉坐颠狂", "戌": "戌不吃犬作怪上床", "亥": "亥不嫁娶不利新郎"}
+# 月家紫白起例：子午卯酉年正月起八白、寅申巳亥年正月起二黑、辰戌丑未年正月起五黄，逐月递减
+MONTH_STAR_START = {"子": 8, "午": 8, "卯": 8, "酉": 8,
+                    "寅": 2, "申": 2, "巳": 2, "亥": 2,
+                    "辰": 5, "戌": 5, "丑": 5, "未": 5}
+# 日家紫白三元起例（歌诀：冬至雨水及谷雨，阳顺一七四中游；夏至处暑霜降后，九三六星逆行求）
+JIEQI_NAMES = ["冬至", "小寒", "大寒", "立春", "雨水", "惊蛰", "春分", "清明", "谷雨", "立夏",
+               "小满", "芒种", "夏至", "小暑", "大暑", "立秋", "处暑", "白露", "秋分", "寒露",
+               "霜降", "立冬", "小雪", "大雪"]
+DAY_STAR_YUAN = {0: (1, False), 4: (7, False), 8: (4, False),
+                 12: (9, True), 16: (3, True), 20: (6, True)}   # idx → (起星, 是否阴遁逆行)
+# 六十甲子玄空五行与卦运（福山堂《玄空飛星擇日法》载表；单源资料，重大决策宜另核）
+XUANKONG_WUXING = {
+    "甲子": ("水", 1), "甲申": ("木", 9), "甲辰": ("木", 2),
+    "乙丑": ("木", 6), "乙酉": ("金", 9), "乙巳": ("火", 7),
+    "丙寅": ("火", 2), "丙戌": ("水", 6), "丙午": ("金", 4),
+    "丁卯": ("水", 6), "丁亥": ("木", 8), "丁未": ("水", 6),
+    "戊辰": ("金", 9), "戊子": ("火", 7), "戊申": ("火", 2),
+    "己巳": ("木", 8), "己丑": ("金", 9), "己酉": ("木", 3),
+    "庚午": ("木", 8), "庚寅": ("木", 3), "庚戌": ("金", 9),
+    "辛未": ("金", 9), "辛卯": ("火", 2), "辛亥": ("火", 7),
+    "壬申": ("水", 1), "壬辰": ("水", 6), "壬子": ("木", 8),
+    "癸酉": ("火", 2), "癸巳": ("金", 4), "癸丑": ("水", 6),
+    "甲戌": ("火", 7), "甲午": ("金", 9), "甲寅": ("火", 7),
+    "乙亥": ("木", 3), "乙未": ("火", 7), "乙卯": ("水", 1),
+    "丙子": ("水", 6), "丙申": ("木", 8), "丙辰": ("金", 4),
+    "丁丑": ("金", 4), "丁酉": ("金", 4), "丁巳": ("火", 2),
+    "戊寅": ("木", 8), "戊戌": ("水", 1), "戊午": ("木", 3),
+    "己卯": ("火", 7), "己亥": ("火", 2), "己未": ("水", 1),
+    "庚辰": ("水", 1), "庚子": ("火", 2), "庚申": ("火", 7),
+    "辛巳": ("木", 3), "辛丑": ("水", 1), "辛酉": ("木", 8),
+    "壬午": ("火", 1), "壬寅": ("金", 9), "壬戌": ("金", 4),
+    "癸未": ("金", 4), "癸卯": ("木", 8), "癸亥": ("水", 6),
+}
+WUXING_SHENG = {"水": "木", "木": "火", "火": "土", "土": "金", "金": "水"}   # 我生
+WUXING_KE = {"水": "火", "火": "金", "金": "木", "木": "土", "土": "水"}      # 我克
+
+
+def month_star(year_branch, month_branch):
+    """月家紫白入中星：正月（寅月）起例逐月递减。"""
+    off = (DIZHI.index(month_branch) - 2) % 12   # 寅月=正月
+    return ((MONTH_STAR_START[year_branch] - 1 - off) % 9) + 1
+
+
+def hour_star(day_branch, hour, yin):
+    """时家紫白入中星。按日支分组起例：阳遁（冬至后）顺——子午卯酉日子时起一白、
+    辰戌丑未日子时起四绿、寅申巳亥日子时起七赤；阴遁（夏至后）逆——起九紫/六白/三碧。"""
+    hb = (int(hour) + 1) // 2 % 12          # 时支序：子时0
+    group = DIZHI.index(day_branch) % 3     # 0=子午卯酉 1=辰戌丑未 2=寅申巳亥
+    start = {0: (1, 9), 1: (4, 6), 2: (7, 3)}[group][1 if yin else 0]
+    return ((start - 1 + (hb if not yin else -hb)) % 9) + 1
+
+
+def _first_jiazi_after(y, m, d):
+    """该日期（含当日）起第一个甲子日。"""
+    from datetime import date as _date, timedelta as _td
+    dd = _date(y, m, d)
+    for _ in range(70):
+        day = sxtwl.fromSolar(dd.year, dd.month, dd.day)
+        g = day.getDayGZ()
+        if g.tg == 0 and g.dz == 0:
+            return dd
+        dd += _td(days=1)
+    return None
+
+
+def day_star(y, m, d):
+    """日家紫白入中星。返回 (星, 季, 元节气名, 元甲子日) 或 (None,)*4。
+    六元：冬至/雨水/谷雨后首个甲子日分别起 1/7/4 顺行；夏至/处暑/霜降后起 9/3/6 逆行。"""
+    if not HAS_SXTWL:
+        return None, None, None, None
+    from datetime import date as _date, timedelta as _td
+    cur = _date(y, m, d)
+    found = []   # 由近及远记录目标节气
+    probe = cur
+    for _ in range(200):
+        day = sxtwl.fromSolar(probe.year, probe.month, probe.day)
+        if day.hasJieQi():
+            idx = day.getJieQi()
+            if idx in DAY_STAR_YUAN:
+                found.append((idx, probe))
+                if len(found) >= 2:
+                    break
+        probe -= _td(days=1)
+    for idx, jq_date in found:
+        start, yin = DAY_STAR_YUAN[idx]
+        jiazi = _first_jiazi_after(jq_date.year, jq_date.month, jq_date.day)
+        if jiazi is None:
+            continue
+        n = (cur - jiazi).days
+        if n >= 0:
+            star = ((start - 1 + (n if not yin else -n)) % 9) + 1
+            return star, ("阴遁（夏至后逆行）" if yin else "阳遁（冬至后顺行）"), JIEQI_NAMES[idx], jiazi
+    return None, None, None, None
+
+
+def li_jue(y, m, d):
+    """四离四绝：四立（春夏秋冬）前一日为四绝，二分二至前一日为四离。"""
+    if not HAS_SXTWL:
+        return None
+    from datetime import date as _date, timedelta as _td
+    tmr = _date(y, m, d) + _td(days=1)
+    day = sxtwl.fromSolar(tmr.year, tmr.month, tmr.day)
+    if day.hasJieQi():
+        name = JIEQI_NAMES[day.getJieQi()]
+        if name in ("立春", "立夏", "立秋", "立冬"):
+            return "四绝（" + name + "前一日）"
+        if name in ("春分", "秋分", "夏至", "冬至"):
+            return "四离（" + name + "前一日）"
+    return None
+
+
+def jianchu_day(month_branch, day_branch):
+    """十二建除：月建起建，顺数至日支。月破日=破。"""
+    idx = (DIZHI.index(day_branch) - DIZHI.index(month_branch)) % 12
+    name = JIANCHU[idx]
+    if name in JIANCHU_HUANG:
+        grade = "黄道吉" + ("（成/开尤吉）" if name in ("成", "开") else "")
+    elif name in ("破", "闭"):
+        grade = "凶（破闭不相当）"
+    else:
+        grade = "黑道"
+    return {"神": name, "级": grade, "月破": name == "破"}
+
+
+def xk_relation(other_wx, other_yun, day_wx, day_yun):
+    """玄空择日五要件：他（年月时）对我（日）——生入/克入/同旺/合十/生成为吉，生出/克出为凶。"""
+    if other_wx == day_wx:
+        rel = "同五行"
+    elif WUXING_SHENG[other_wx] == day_wx:
+        rel = "生入（吉）"
+    elif WUXING_SHENG[day_wx] == other_wx:
+        rel = "生出（凶）"
+    elif WUXING_KE[other_wx] == day_wx:
+        rel = "克入（吉）"
+    else:
+        rel = "克出（凶）"
+    yun_rel = ""
+    if other_yun == day_yun:
+        yun_rel = "同旺（吉）"
+    elif other_yun + day_yun == 10:
+        yun_rel = "合十（吉）"
+    elif abs(other_yun - day_yun) == 5:
+        yun_rel = "生成（吉）"
+    ji = ("吉" in rel) or bool(yun_rel)
+    return {"关系": rel + (("；" + yun_rel) if yun_rel else ""), "吉": ji}
+
+
+def riche_report(y, m, d, hour=None, sitting=None):
+    """日课择吉总输出。需 sxtwl。"""
+    out = {"date": f"{y:04d}-{m:02d}-{d:02d}", "hour": hour}
+    if not HAS_SXTWL:
+        out["error"] = "日课择吉需要 sxtwl（pip install sxtwl）提供四柱与节气"
+        return out
+    day = sxtwl.fromSolar(y, m, d)
+    ygz, mgz, dgz = day.getYearGZ(False), day.getMonthGZ(), day.getDayGZ()
+    pillars = {"年": TIANGAN[ygz.tg] + DIZHI[ygz.dz], "月": TIANGAN[mgz.tg] + DIZHI[mgz.dz],
+               "日": TIANGAN[dgz.tg] + DIZHI[dgz.dz]}
+    hgz = None
+    if hour is not None:
+        hgz = day.getHourGZ(hour)
+        pillars["时"] = TIANGAN[hgz.tg] + DIZHI[hgz.dz]
+    out["四柱"] = pillars
+    out["日干支"] = pillars["日"]
+
+    # 紫白四盘
+    eff_year = next((1984 + i for i in range(60) if i % 10 == ygz.tg and i % 12 == ygz.dz
+                     and abs(1984 + i - y) <= 1), y)
+    ystar = annual_star(eff_year)
+    mstar = month_star(DIZHI[ygz.dz], DIZHI[mgz.dz])
+    dstar, season, yuan_name, jiazi = day_star(y, m, d)
+    out["紫白"] = {"年星": ystar, "年有效年": eff_year,
+                   "月星": mstar, "月建支": DIZHI[mgz.dz],
+                   "日星": dstar, "日季": season, "日元起": (f"{yuan_name}后首个甲子{jiazi.isoformat()}" if jiazi else None)}
+    if hour is not None and dstar:
+        yin = "阴遁" in (season or "")
+        hstar = hour_star(DIZHI[dgz.dz], hour, yin)
+        out["紫白"]["时星"] = hstar
+
+    # 建除 / 月破 / 岁破 / 日冲 / 彭祖 / 离绝
+    jc = jianchu_day(DIZHI[mgz.dz], DIZHI[dgz.dz])
+    day_zhi = DIZHI[dgz.dz]
+    year_zhi = DIZHI[ygz.dz]
+    chong_zhi = DIZHI[(DIZHI.index(day_zhi) + 6) % 12]
+    out["建除"] = jc
+    out["月破日"] = jc["月破"]
+    out["岁破日"] = day_zhi == DIZHI[(DIZHI.index(year_zhi) + 6) % 12]
+    out["日冲"] = f"冲{chong_zhi}（生肖{'鼠牛虎兔龙蛇马羊猴鸡狗猪'[DIZHI.index(chong_zhi)]}）"
+    out["彭祖百忌"] = [PENGZU_GAN[TIANGAN[dgz.tg]], PENGZU_ZHI[day_zhi]]
+    lj = li_jue(y, m, d)
+    out["四离四绝"] = lj
+
+    # 玄空五行五要件（年/月/时 对 日辰）
+    dwx = XUANKONG_WUXING.get(pillars["日"])
+    if dwx:
+        evals = {}
+        for k in ("年", "月", "时"):
+            if k in pillars:
+                ox = XUANKONG_WUXING.get(pillars[k])
+                if ox:
+                    evals[k] = {"干支": pillars[k], "玄空五行": ox[0], "卦运": ox[1],
+                                **xk_relation(ox[0], ox[1], dwx[0], dwx[1])}
+        out["玄空五行"] = {"日": {"干支": pillars["日"], "五行": dwx[0], "卦运": dwx[1]},
+                           "对日辰评估": evals,
+                           "来源注": "六十甲子玄空五行卦运表为单源资料，重大事项宜另核"}
+
+    # 综合提示
+    tips = []
+    if jc["月破"]:
+        tips.append("⚠ 月破日，大事勿用")
+    if out["岁破日"]:
+        tips.append("⚠ 岁破日，大事勿用")
+    if lj:
+        tips.append(f"⚠ {lj}，诸事不宜（尤其动土、搬迁）")
+    tips.append(f"日冲{chong_zhi}：家中属{'鼠牛虎兔龙蛇马羊猴鸡狗猪'[DIZHI.index(chong_zhi)]}者此日大事尽量回避")
+    if jc["神"] in ("成", "定", "开"):
+        tips.append("建除成/定/开，利入宅、开市、安床等喜庆事")
+    elif jc["神"] in ("破", "闭"):
+        tips.append("建除破/闭，不宜入宅、动土、开业")
+    if sitting:
+        zuo, _xiang = parse_sitting(sitting)
+        ss_x = shoushan_chusha(_xiang)
+        tips.append(f"向首{_xiang}属{ss_x['诀']}：{ss_x['宜']}")
+    if not tips:
+        tips.append("无破格；具体事宜结合紫白与宅盘参断")
+    out["提示"] = tips
+    return out
 
 STAR_NUM_NAME = {1: "一白", 2: "二黑", 3: "三碧", 4: "四绿", 5: "五黄",
                  6: "六白", 7: "七赤", 8: "八白", 9: "九紫"}
@@ -803,7 +1118,9 @@ def analyze_house(house, current_year=2026):
         "warnings": warnings,
     }
     result["feixing"] = {"charts": charts, "格局": geju, "格局细节": geju_detail,
-                         "特殊": flags, "notes": charts["notes"], "城门": cm}
+                         "特殊": flags, "notes": charts["notes"], "城门": cm,
+                         "收山出煞": {"向首": shoushan_chusha(xiang), "坐山": shoushan_chusha(zuo),
+                                      "要诀": "中州派收山出煞诀：出煞十四山宜开扬、收山十山宜收敛"}}
     result["zhai"] = {"宅卦": zhai_gua, "东西四宅": zhai_cls, "宅卦大游年": dayou_layout(zhai_gua)}
 
     # 3) 命主（畸形条目单条跳过，不中止整体；缺性别给出显著提示）
@@ -853,6 +1170,23 @@ def analyze_house(house, current_year=2026):
     result["rooms"] = rooms
     result["external"] = house.get("external", [])
 
+    # 4.5) 排龙诀（提供水口信息时）
+    shuikou = house.get("shuikou")
+    if shuikou:
+        try:
+            s = str(shuikou).strip()
+            if s in MOUNTAIN_ORDER:
+                sk_m = s
+            else:
+                sk_m, _, _ = mountain_from_deg(float(s.replace("°", "")))
+            long_m = opposite_mountain(sk_m)   # 面向水口时，人端之山为来龙（水口方之山的对山）
+            pl_chart, pl_dir = palong_chart(long_m)
+            result["pailong"] = {"水口方山": sk_m, "来龙": long_m, "行向": pl_dir,
+                                 "十二宫": pl_chart,
+                                 **palong_verdict(pl_chart, xiang, yun)}
+        except (ValueError, TypeError) as e:
+            result["pailong"] = {"error": f"水口解析失败：{e}"}
+
     # 5) 流年
     ay_raw = house.get("annual_year", current_year)
     try:
@@ -896,6 +1230,10 @@ def format_result(res):
     for n in fx["notes"]:
         L.append(f"  · {n}")
     L.append(f"格局：{fx['格局']}")
+    ss = fx.get("收山出煞")
+    if ss:
+        L.append(f"收山出煞：向首{ss['向首']['山']}属{ss['向首']['诀']}（{ss['向首']['宜']}）；"
+                 f"坐山{ss['坐山']['山']}属{ss['坐山']['诀']}")
     for f in fx["特殊"]:
         L.append(f"  ◆ {f}")
     L.append(f"  · 旺山星({yun['period']})在：{'、'.join(fx['格局细节']['旺山星所在']) or '无'}；"
@@ -939,7 +1277,16 @@ def format_result(res):
         for e in ext:
             L.append(f"  · {e}")
     an = res["annual"]
+    pl = res.get("pailong")
     L.append("")
+    if pl:
+        if "error" in pl:
+            L.append(f"排龙：⚠ {pl['error']}")
+        else:
+            L.append(f"排龙诀（中州派）：水口方{pl['水口方山']} → 来龙{pl['来龙']}（{pl['行向']}）"
+                     f"；宅向首{pl['向首宫']}宫得【{pl['龙星']}龙】{pl['吉凶']}，{pl['说明']}")
+            L.append("  十二宫龙星：" + " ".join(f"{g}{s}" for g, s in pl["十二宫"].items())
+                     + "　（五吉：右左贪巨武；以吉龙宫内二山为向首选向）")
     if "error" in an:
         L.append(f"  ⚠ 流年：{an['error']}")
     else:
@@ -1145,6 +1492,65 @@ def selftest():
     r11 = analyze_house({"period": 8, "sitting": "子山午向", "persons": [], "rooms": []})
     check("手工period渲染不崩且标注8运", "8运" in format_result(r11))
 
+    print("── 排龙诀 ──")
+    ch, _ = palong_chart("子")   # 福山堂实例一：子山来龙，午起破军顺行
+    check("子山来龙：午破军未右弼申廉贞", ch["午"] == "破军" and ch["未"] == "右弼" and ch["申"] == "廉贞")
+    check("子山来龙：亥贪狼子破军辰巨门", ch["亥"] == "贪狼" and ch["子"] == "破军" and ch["辰"] == "巨门")
+    ch, _ = palong_chart("壬")   # 实例二：壬山来龙（阳），巳起破军逆行
+    check("壬山来龙：巳破军辰右弼卯廉贞", ch["巳"] == "破军" and ch["辰"] == "右弼" and ch["卯"] == "廉贞")
+    check("壬山来龙：午禄存丑武曲子贪狼", ch["午"] == "禄存" and ch["丑"] == "武曲" and ch["子"] == "贪狼")
+    ch, _ = palong_chart("癸")   # 实例三：七运癸山来龙，午破军/巳右弼/辰廉贞
+    check("癸山来龙：午破军巳右弼辰廉贞", ch["午"] == "破军" and ch["巳"] == "右弼" and ch["辰"] == "廉贞")
+    allstars = [palong_chart(m)[0][palong_palace_of(m)] for m in ("子", "癸", "壬", "亥", "午", "丁")]
+    check("来龙宫必为第7位破军", all(s == "破军" for s in allstars))
+    cnt = list(palong_chart("子")[0].values()).count("破军")
+    check("破军出现4次", cnt == 4)
+    v = palong_verdict(palong_chart("子")[0], "癸")
+    check("子龙宅向癸→七凶破军", v["龙星"] == "破军" and v["吉凶"] == "七凶龙")
+
+    print("── 收山出煞诀 ──")
+    check("出煞14山/收山10山/不交且并集24",
+          len(CHU_SHA_MOUNTAINS) == 14 and len(SHOU_SHAN_MOUNTAINS) == 10
+          and not (CHU_SHA_MOUNTAINS & SHOU_SHAN_MOUNTAINS)
+          and CHU_SHA_MOUNTAINS | SHOU_SHAN_MOUNTAINS == set("".join(MOUNTAIN_ORDER)))
+    check("子午出煞/壬癸? 子出壬收巳收",
+          shoushan_chusha("子")["诀"] == "出煞" and shoushan_chusha("壬")["诀"] == "收山"
+          and shoushan_chusha("巳")["诀"] == "收山" and shoushan_chusha("丑")["诀"] == "出煞")
+
+    print("── 日课择吉 ──")
+    ms = month_star("午", "寅")
+    check("午年寅月起八白", ms == 8, f"实得{ms}")
+    check("午年申月二黑(逐月递减)", month_star("午", "申") == 2, f"实得{month_star('午', '申')}")
+    check("子年寅月八白/寅年寅月二黑/辰年寅月五黄",
+          month_star("子", "寅") == 8 and month_star("寅", "寅") == 2 and month_star("辰", "寅") == 5)
+    check("时白阳遁：子午卯酉日子1丑2/辰戌丑未日子4卯7/寅申巳亥日子7卯1",
+          hour_star("子", 0, False) == 1 and hour_star("子", 2, False) == 2
+          and hour_star("辰", 0, False) == 4 and hour_star("辰", 6, False) == 7
+          and hour_star("寅", 0, False) == 7 and hour_star("寅", 6, False) == 1,
+          f"{hour_star('子',0,False)}/{hour_star('辰',0,False)}/{hour_star('寅',0,False)}")
+    check("时白阴遁：子午卯酉日子9寅7/辰戌丑未日子6寅4/寅申巳亥日子3寅1",
+          hour_star("子", 0, True) == 9 and hour_star("子", 4, True) == 7
+          and hour_star("辰", 0, True) == 6 and hour_star("辰", 4, True) == 4
+          and hour_star("寅", 0, True) == 3 and hour_star("寅", 4, True) == 1)
+    if HAS_SXTWL:
+        s1 = day_star(2024, 12, 26)   # 冬至2024-12-21后首个甲子
+        check("日白：2024-12-26一白(冬至后首甲子)", s1[0] == 1 and s1[2] == "冬至", f"实得{s1[0]},{s1[2]}")
+        s2 = day_star(2024, 12, 27)
+        check("日白：次日二白顺行", s2[0] == 2, f"实得{s2[0]}")
+        s3 = day_star(2025, 2, 24)    # 雨水2025-02-18后首个甲子
+        check("日白：2025-02-24七赤(雨水后首甲子)", s3[0] == 7 and s3[2] == "雨水", f"实得{s3[0]},{s3[2]}")
+        s4 = day_star(2025, 2, 25)
+        check("日白：次日八白顺行", s4[0] == 8, f"实得{s4[0]}")
+        s5 = day_star(2024, 12, 24)   # 甲子前数日→沿用霜降元
+        check("日白：元前空档沿用前元(霜降逆行)", s5[0] is not None and s5[2] == "霜降", f"实得{s5[0]},{s5[2]}")
+        r = riche_report(2026, 9, 6, 8)
+        check("riche四柱2026-09-06癸未日", r["四柱"]["日"] == "癸未", f"实得{r['四柱']}")
+        check("riche建除申月未日=闭", r["建除"]["神"] == "闭", f"实得{r['建除']['神']}")
+    check("玄空五行表抽查", XUANKONG_WUXING["甲子"] == ("水", 1) and XUANKONG_WUXING["壬午"] == ("火", 1)
+          and XUANKONG_WUXING["癸亥"] == ("水", 6))
+    check("建除月破=破神", jianchu_day("申", "寅")["月破"] is True)
+    check("六十甲子表全覆盖", len(XUANKONG_WUXING) == 60)
+
     print("")
     if errors:
         print(f"❌ {len(errors)} 项失败：{errors}")
@@ -1179,6 +1585,17 @@ def main():
 
     p = sub.add_parser("annual", help="流年紫白盘")
     p.add_argument("year", type=int)
+
+    p = sub.add_parser("pailong", help="排龙诀（中州派）")
+    p.add_argument("--long", dest="long_m", help="来龙山（宅中心面向水口时，人端罗盘所压之山）")
+    p.add_argument("--shuikou", help="水口方的山（自动取其对山为来龙）")
+    p.add_argument("--facing", help="现成宅的向山，用于吉凶判定")
+    p.add_argument("--period", type=int, choices=[1, 2, 3, 4, 6, 7, 8, 9], help="当运，用于河图当旺龙判断")
+
+    p = sub.add_parser("riche", help="日课择吉（玄空紫白+建除+通用宜忌，需 sxtwl）")
+    p.add_argument("--date", required=True, help="YYYY-MM-DD")
+    p.add_argument("--hour", type=int, help="24小时制，可选（给出生时柱与时星）")
+    p.add_argument("--sitting", help="坐向，可选（给出向首收山出煞提示）")
 
     p = sub.add_parser("all", help="完整分析")
     p.add_argument("--house", required=True, help="house.json 路径")
@@ -1262,6 +1679,66 @@ def main():
               f"岁破{info['岁破']['支'] or '—'}（{info['岁破']['方位']}），"
               f"三煞在{info['三煞']['方位']}")
         print(f"五黄到{'、'.join(info['五黄到']) or '中宫'}，二黑到{'、'.join(info['二黑到']) or '中宫'}（宜静不宜动）")
+        return
+
+    if args.cmd == "pailong":
+        if args.shuikou:
+            if args.shuikou not in MOUNTAIN_ORDER:
+                print(f"❌ 水口方须为二十四山之一（{args.shuikou} 无效）")
+                sys.exit(1)
+            long_m = opposite_mountain(args.shuikou)
+        elif args.long_m:
+            long_m = args.long_m
+        else:
+            print("❌ 需提供 --long 来龙山 或 --shuikou 水口方的山")
+            sys.exit(1)
+        chart, direction = palong_chart(long_m)
+        print(f"排龙诀（中州派）：来龙{long_m}，{direction}，来龙对宫起破军")
+        print("  十二宫龙星（五吉：贪巨武左右辅；七凶：破廉文禄）：")
+        for g in PALONG_ORDER:
+            star = chart[g]
+            tag = "★" if star in PALONG_JI else "✕"
+            ms = "/".join(PALONG_PALACES[g])
+            print(f"    {g}宫（{ms}）→ {star} {tag}")
+        if args.facing:
+            if args.facing not in MOUNTAIN_ORDER:
+                print(f"❌ 向山无效：{args.facing}")
+                sys.exit(1)
+            v = palong_verdict(chart, args.facing, args.period)
+            print(f"  宅向首{v['向首宫']}宫 → 【{v['龙星']}龙】{v['吉凶']}（五行{v['龙五行']}）")
+            print(f"  判定：{v['说明']}")
+            print("  提示：吉龙宫内二山可作向首选向，还须配后天星盘与形峦；排龙出卦（如丙巳兼线）此宅不可用")
+        return
+
+    if args.cmd == "riche":
+        try:
+            from datetime import date as _d
+            yy, mm, dd = [int(x) for x in args.date.split("-")]
+            _d(yy, mm, dd)
+        except ValueError as e:
+            print(f"❌ 日期无效：{e}")
+            sys.exit(1)
+        res2 = riche_report(yy, mm, dd, args.hour, args.sitting)
+        if "error" in res2:
+            print(f"❌ {res2['error']}")
+            sys.exit(1)
+        p4 = res2["四柱"]
+        print(f"日课：{res2['date']}" + (f" {args.hour}:00" if args.hour is not None else ""))
+        print(f"四柱：{p4['年']}年 {p4['月']}月 {p4['日']}日" + (f" {p4['时']}时" if "时" in p4 else ""))
+        zb = res2["紫白"]
+        print(f"紫白入中：年{zb['年星']}白（{zb['年有效年']}）· 月{zb['月星']}白（{zb['月建支']}月）· "
+              f"日{zb['日星']}白（{zb['日季']}）" + (f"· 时{zb['时星']}白" if "时星" in zb else ""))
+        jc = res2["建除"]
+        print(f"建除：{jc['神']}（{jc['级']}）" + ("　⚠月破日" if res2["月破日"] else ""))
+        print(f"{'⚠ 岁破日　' if res2['岁破日'] else ''}{res2['日冲']}　{'⚠ ' + res2['四离四绝'] if res2['四离四绝'] else ''}")
+        print(f"彭祖百忌：{'；'.join(res2['彭祖百忌'])}")
+        xk = res2.get("玄空五行")
+        if xk:
+            print(f"玄空五行：日{xk['日']['干支']}属{xk['日']['五行']}（卦运{xk['日']['卦运']}）")
+            for k, v in xk["对日辰评估"].items():
+                print(f"  {k}柱{v['干支']}（{v['玄空五行']}，运{v['卦运']}）→ {v['关系']}")
+        for t in res2["提示"]:
+            print(f"  · {t}")
         return
 
     if args.cmd == "all":

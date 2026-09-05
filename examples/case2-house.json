@@ -3,20 +3,55 @@
     "built_year": 2024,
     "sitting": "午山子向",
     "sitting_deg": 185,
-    "annual_year": 2026
+    "annual_year": 2026,
+    "shuikou": "子"
   },
   "persons": [
-    {"name": "户主", "birth": "2024-06-15", "gender": "男", "school": "lichun"},
-    {"name": "母亲", "birth": "1996-11-02", "gender": "女", "school": "lichun"}
+    {
+      "name": "户主",
+      "birth": "2024-06-15",
+      "gender": "男",
+      "school": "lichun"
+    },
+    {
+      "name": "母亲",
+      "birth": "1996-11-02",
+      "gender": "女",
+      "school": "lichun"
+    }
   ],
   "rooms": [
-    {"name": "大门", "pos": "北"},
-    {"name": "客厅", "pos": "北"},
-    {"name": "主卧", "pos": "西南"},
-    {"name": "儿童房", "pos": "东北"},
-    {"name": "厨房", "pos": "东北"},
-    {"name": "卫生间", "pos": "东南"},
-    {"name": "阳台", "pos": "北"}
+    {
+      "name": "大门",
+      "pos": "北"
+    },
+    {
+      "name": "客厅",
+      "pos": "北"
+    },
+    {
+      "name": "主卧",
+      "pos": "西南"
+    },
+    {
+      "name": "儿童房",
+      "pos": "东北"
+    },
+    {
+      "name": "厨房",
+      "pos": "东北"
+    },
+    {
+      "name": "卫生间",
+      "pos": "东南"
+    },
+    {
+      "name": "阳台",
+      "pos": "北"
+    }
   ],
-  "external": ["北面为小区道路，无路冲", "南面正对两栋楼之间夹缝约50米"]
+  "external": [
+    "北面为小区道路，无路冲",
+    "南面正对两栋楼之间夹缝约50米"
+  ]
 }

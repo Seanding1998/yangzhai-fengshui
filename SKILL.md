@@ -46,7 +46,7 @@ description: 专业阳宅风水分析：房屋是否适合命主、户型布局�
 python scripts/fengshui.py feixing --period <运> --sitting "<坐山>山<向山>向"
 ```
 ⚠ 度数口径：`--sitting` 传纯度数时按**坐山度数**解释；若手头是"面向屋外实测的朝向度数"（更常见），请用 `--facing <度数>`，脚本会自动判正向/替卦。也可加 `--replace` 强制替卦、`--json` 输出结构化结果。
-读 `references/xuankong-feixing.md` 解读：格局（旺山旺向/上山下水/双星会坐/会向）→ 旺衰 → 逐宫山向星组合 → 特殊格局（伏吟/反吟/合十/三般卦/打劫/城门）。九运房注意：下卦无旺山旺向与上山下水，全为双星局，属正常而非排盘错误。
+读 `references/xuankong-feixing.md` 解读：格局（旺山旺向/上山下水/双星会坐/会向）→ 旺衰 → 逐宫山向星组合 → 特殊格局（伏吟/反吟/合十/三般卦/打劫/城门）。脚本同时输出**收山出煞**判定（向首/坐山宜开扬或收敛，见 references/pailong-shoushan.md），纳入大门与门厅设计建议。九运房注意：下卦无旺山旺向与上山下水，全为双星局，属正常而非排盘错误。
 
 ### 第 4 步 · 八宅命卦与宅命相配
 ```bash
@@ -67,8 +67,20 @@ python scripts/fengshui.py annual <年份>
 ```
 读 `references/liunian-feixing.md`。列当年五黄/二黑/三煞/岁破/文昌/财气方，映射到用户家中具体房间，并说明与宅盘的引动关系。
 
-### 第 7 步 · 外部形煞（有描述才做）
-读 `references/waixing-shasha.md`。按强度分级评估，落宫引动，给出"挡避优先"的建议。
+### 第 7 步 · 外部形煞与排龙（有描述/水口信息才做）
+读 `references/waixing-shasha.md`。按强度分级评估形煞，落宫引动，给出"挡避优先"的建议。
+若用户提供**水口**信息（最近的十字/丁字路口方位），加排排龙诀（中州派，读 `references/pailong-shoushan.md`）：
+```bash
+python scripts/fengshui.py pailong --shuikou <水口方的山> --facing <向山> --period <运>
+```
+水口方的山（如南面路口取"午"），脚本自动取对山为来龙、排十二宫龙星、按宅向首判五吉/七凶（含当运河图权用）。`all` 命令亦接受 house.json 的 `"shuikou": "午"` 字段自动排龙。现代高楼难定真水口时，如实告知勿强断。
+
+### 第 8 步 · 日课择吉（用户需要选日子时做）
+读 `references/rique-zhai.md`。用于入宅搬家、动土装修、开业安床等：
+```bash
+python scripts/fengshui.py riche --date 2026-10-01 --hour 9 --sitting "子山午向"
+```
+输出四柱、年月日时紫白四盘、十二建除黄黑道、月破/岁破/日冲生肖、彭祖百忌、四离四绝、玄空五行五要件评估与综合提示（需 sxtwl）。择吉硬规则：避月破、岁破、四离四绝、冲宅主年支；入宅喜成/定/开日。多个候选日时，逐日跑 `riche` 对比后给推荐排序。
 
 ### 综合报告（完整分析模式的收尾）
 
@@ -103,7 +115,8 @@ python scripts/generate_report.py --input data.json --output 风水报告.html -
     "sitting": "子山午向",
     "sitting_deg": 178,
     "annual_year": 2026,
-    "replace": false
+    "replace": false,
+    "shuikou": "午"
   },
   "persons": [
     {"name": "命主", "birth": "1990-05-21", "gender": "女", "school": "lichun"}
@@ -120,6 +133,7 @@ python scripts/generate_report.py --input data.json --output 风水报告.html -
 ```
 - `sitting`：坐向描述或坐山名；`sitting_deg` 为**面向屋外实测的度数**（默认按朝向/向的度数解释，若更接近坐山则自动按坐山解释并提示；与声明坐向明显不符时忽略度数并警示），给出时自动判兼向/替卦（沈氏标准：正向 ±4.5°）。
 - `replace`：`true` 强制按替卦排盘（默认按偏差自动判定）。
+- `shuikou`：水口方的山（如南面路口取"午"），提供时自动排中州派排龙诀并按宅向首判吉凶。
 - `pos`：方位名（南/东南/正南/东北方…）、宫名（离/巽…）或度数皆可。
 - `persons[].school`：`lichun`（默认，立春分界）/ `solar`（公历年）。仅给年份时（如 `"birth": "1990"`）不做立春分界，报告中会提示。
 - `external`：外部环境描述，原样回显到结果 JSON（供形煞评估节引用）。
@@ -135,6 +149,8 @@ python scripts/generate_report.py --input data.json --output 风水报告.html -
 | references/bazhai-dayou.md | 第 4 步命卦/宅卦/门主灶 |
 | references/layout-checklist.md | 第 5 步户型核查 |
 | references/waixing-shasha.md | 第 7 步外部环境 |
+| references/pailong-shoushan.md | 第 7 步排龙诀；第 3 步收山出煞 |
+| references/rique-zhai.md | 第 8 步日课择吉 |
 | references/liunian-feixing.md | 第 6 步流年叠加 |
 
 脚本自检：`python scripts/fengshui.py selftest`（改动脚本后必跑，应全部 ✅）。
