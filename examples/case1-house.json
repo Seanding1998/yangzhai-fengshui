@@ -1,0 +1,21 @@
+{
+  "house": {
+    "built_year": 2012,
+    "sitting": "子山午向",
+    "sitting_deg": 178,
+    "annual_year": 2026
+  },
+  "persons": [
+    {"name": "命主", "birth": "1990-05-21", "gender": "女", "school": "lichun"}
+  ],
+  "rooms": [
+    {"name": "大门", "pos": "南"},
+    {"name": "客厅", "pos": "南"},
+    {"name": "主卧", "pos": "西北"},
+    {"name": "厨房", "pos": "东"},
+    {"name": "卫生间", "pos": "西"},
+    {"name": "书房", "pos": "东南"},
+    {"name": "阳台", "pos": "南"}
+  ],
+  "external": ["南面为小区中心花园，开阔", "北面贴另一栋楼，约30米"]
+}
