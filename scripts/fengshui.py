@@ -1501,6 +1501,229 @@ def format_result(res):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  录入信息校验（validate-input）：从 analyze_house 的硬依赖反推，
+#  ❌ 硬伤须补齐才能分析；⚠ 降级可分析但结论打折；每条映射问诊单条目号
+# ═══════════════════════════════════════════════════════════════
+
+def validate_input(house):
+    """house dict → {"issues": [...], "errors": n, "warns": n}。
+    issue = {"级别": "❌/⚠/·", "条目": 问诊单编号或"—", "标题": str, "说明": str, "追问": str}"""
+    issues = []
+
+    def add(level, item, title, note="", ask=""):
+        issues.append({"级别": level, "条目": item, "标题": title, "说明": note, "追问": ask})
+
+    if not isinstance(house, dict):
+        add("❌", "—", "根结构须为对象",
+            f"得到 {type(house).__name__}；应为 {{house:{{...}}, persons:[], rooms:[]}}",
+            "按 templates/house-input.json 重建")
+        return {"issues": issues, "errors": 1, "warns": 0}
+
+    nested = isinstance(house.get("house"), dict)
+    h = house.get("house") if nested else house
+    persons = house.get("persons", [])
+    rooms = house.get("rooms", [])
+    external = house.get("external")
+    flat_keys = set(house.keys())
+    misplaced = []
+    if nested:
+        flat_keys -= {"house", "persons", "rooms", "external"}
+        misplaced = [k for k in flat_keys
+                     if k in ("sitting", "sitting_deg", "built_year", "period", "annual_year",
+                              "replace", "shuikou")]
+        buried = [k for k in ("persons", "rooms", "external") if k in h]
+        if buried:
+            add("❌", "—", f"persons/rooms/external 写进了 house 对象内：{'、'.join(buried)}",
+                "它们必须在根级，写在 house 内会被静默忽略",
+                "对照 templates/house-input.json 的层级重排")
+        if misplaced:
+            add("❌", "—", f"字段放错层级：{'、'.join(misplaced)}",
+                "这些字段应位于 house 对象内（persons/rooms/external 在根级）",
+                "对照 templates/house-input.json 的层级重排")
+    known = {"house", "persons", "rooms", "external", "built_year", "period", "sitting",
+             "sitting_deg", "annual_year", "replace", "shuikou"}
+    unknown = flat_keys - known - set(misplaced)
+    if unknown:
+        add("·", "—", f"存在无法识别的字段（将被忽略）：{'、'.join(sorted(unknown))}",
+            "常见笔误：person/room（应为 persons/rooms）、built（应为 built_year）",
+            "确认是笔误则更正，否则删除")
+
+    # ① 定运
+    built = h.get("built_year")
+    period = h.get("period")
+    if built is None and period is None:
+        add("❌", "①", "缺少建成年份（也无法用 period 定运）", "不定运则全盘皆废",
+            "问房子/小区建成年份；实在未知可给入住年份（AI 会声明跨运争议）或直接指定 period 1-9")
+    else:
+        if built is not None:
+            try:
+                b = int(built)
+                if b != float(built):
+                    raise ValueError
+                if not 1864 <= b <= 2043:
+                    add("❌", "①", f"建成年份 {b} 超出三元九运表（1864-2043）", "",
+                        "核对年份；2024 立春后建成属九运")
+            except (TypeError, ValueError):
+                add("❌", "①", f"建成年份 {built!r} 不是有效整数", "",
+                    "给四位数字年份，如 2012")
+        if period is not None and (not isinstance(period, (int, float)) or not 1 <= period <= 9):
+            add("❌", "①", f"period {period!r} 无效", "应为 1-9 的整数", "改正或删除 period 改由年份定运")
+
+    # ② 坐向
+    sitting = h.get("sitting")
+    if not sitting or not isinstance(sitting, str):
+        add("❌", "②", f"缺少有效的 sitting 坐向声明（得到 {sitting!r}）", "如 '子山午向'",
+            "按问诊单②给度数或朝向描述；只有粗描述时可让 AI 取中心山并声明精度损失")
+    else:
+        try:
+            zuo, xiang = parse_sitting(sitting)
+            deg = h.get("sitting_deg")
+            if deg is not None:
+                try:
+                    d = float(deg)
+                    if d != d or not 0 <= d < 360:  # 含 NaN
+                        raise ValueError
+                    zuo_c, xiang_c = mountain_index(zuo) * 15.0, mountain_index(xiang) * 15.0
+                    dev_x = ((d - xiang_c + 180.0) % 360.0) - 180.0
+                    dev_z = ((d - zuo_c + 180.0) % 360.0) - 180.0
+                    if abs(dev_x) <= 7.5:
+                        dev = dev_x
+                    elif abs(dev_z) <= 7.5:
+                        dev = dev_z
+                        add("·", "②", "sitting_deg 更接近坐山度数，将按坐山解释", "",
+                            "确认测量时是面向屋外（朝向）还是背向屋外")
+                    else:
+                        m_at, _, _ = mountain_from_deg(d)
+                        add("⚠", "②", f"度数 {d}° 落在{m_at}山，与声明的坐{zuo}向{xiang}不符，排盘将忽略度数", "",
+                            "复核坐向声明与度数哪个对，二选一更正")
+                except (TypeError, ValueError):
+                    add("❌", "②", f"sitting_deg {deg!r} 不是 0-360 的有效度数", "",
+                        "给指南针实测度数；没有则删去此字段只留坐向描述")
+        except ValueError as e:
+            add("❌", "②", f"sitting 无法解析：{e}", "",
+                "用 'X山Y向' 格式，或让 AI 先从朝向描述定山")
+
+    # ③ 命主
+    if not persons or not isinstance(persons, list):
+        add("⚠", "③", "未提供命主", "无命主则不做宅命相配，只能出宅盘结论",
+            "至少问一位居住者的出生年月日（公历）+性别；夫妻合参更好")
+    else:
+        seen = set()
+        for i, p in enumerate(persons):
+            label = f"persons[{i}]"
+            if not isinstance(p, dict):
+                add("❌", "③", f"{label} 不是对象", f"得到 {p!r}", "应为 {name, birth, gender}")
+                continue
+            name = str(p.get("name", "命主"))
+            if name in seen:
+                add("·", "③", f"重名命主：{name}", "报告将难以区分", "建议加称呼区分")
+            seen.add(name)
+            birth = p.get("birth")
+            try:
+                info = ming_gua_full(birth, p.get("gender") or "男", p.get("school") or "lichun")
+                if birth is not None and "-" not in str(birth):
+                    add("·", "③", f"{name} 只给了年份 {birth}，未做立春分界",
+                        "生于 1 月或 2 月上旬者两派命卦可能不同",
+                        "补全月日（务必给到日）")
+            except (ValueError, KeyError, TypeError) as e:
+                hint = ""
+                bs = str(birth or "")
+                if "年" in bs or "/" in bs or "月" in bs:
+                    hint = "；日期请用纯数字短横线格式 YYYY-MM-DD（阴历须先换算公历）"
+                add("❌", "③", f"{label}（{name}）出生信息无法解析：{e}{hint}", "",
+                    "用公历 YYYY-MM-DD；性别 男/女")
+                continue
+            g = p.get("gender")
+            if g is None or str(g).strip() == "":
+                add("⚠", "③", f"{name} 未提供性别", "将暂按男命计算，结论可能相反",
+                    "务必问清性别（男女命卦算法不同）")
+            if p.get("school") not in (None, "lichun", "solar"):
+                add("⚠", "③", f"{name} school {p['school']!r} 无效", "应为 lichun（立春分界）/ solar（公历年）", "更正或删除")
+
+    # ④ 房间
+    if not rooms or not isinstance(rooms, list):
+        add("⚠", "④", "未提供房间布局", "无法做缺角/中宫厨厕/门主灶/流年落宫核查",
+            "按问诊单④九宫格归位：大门、客厅、主卧、次卧、厨房、卫生间、阳台、书房")
+    else:
+        names = []
+        for i, r in enumerate(rooms):
+            label = f"rooms[{i}]"
+            if not isinstance(r, dict):
+                add("❌", "④", f"{label} 不是对象", f"得到 {r!r}", "应为 {name, pos}")
+                continue
+            rname = str(r.get("name", "未命名"))
+            names.append(rname)
+            pos = r.get("pos")
+            if pos is None:
+                add("❌", "④", f"房间「{rname}」缺少 pos", "pos=方位/宫名/度数", "按九宫格补方位")
+                continue
+            palace = pos_to_palace(str(pos))
+            if palace is None:
+                add("❌", "④", f"房间「{rname}」方位 {pos!r} 无法识别",
+                    "可用：南/东南/离/巽/度数等", "对照九宫格方位名重填")
+            elif palace == "中" and rname in ("厨房", "卫生间"):
+                add("·", "④", f"「{rname}」位于中宫", "中宫见厨厕属结构硬伤，报告中会重点提示", "")
+        for must in ("大门", "厨房", "卫生间", "主卧"):
+            if not any(must in n for n in names):
+                add("⚠", "④", f"未提供「{must}」位置", "门主灶核查的必需项", "补 {\"name\": \"%s\", \"pos\": \"方位\"}" % must)
+        if len(names) != len(set(names)):
+            add("·", "④", "存在重名房间", "逐房间评估时会混淆", "区分命名（如 次卧A/次卧B）")
+
+    # ⑤ 流年 / ⑥⑦⑧ 其余
+    ay = h.get("annual_year")
+    if ay is not None:
+        try:
+            if not 1804 <= int(ay) <= 2103:
+                raise ValueError
+        except (TypeError, ValueError):
+            add("❌", "⑤", f"流年年份 {ay!r} 无效", "应为 1804-2103 的整数", "更正；分析 1-2 月记得按立春换年")
+    else:
+        add("·", "⑤", "未指定 annual_year", f"默认按 {2026} 年排流年盘；流年按立春换年", "")
+    if external is not None and not isinstance(external, list):
+        add("⚠", "⑦", "external 应为字符串数组", f"得到 {type(external).__name__}", "逐条引号逗号分隔")
+    sk = h.get("shuikou")
+    if sk is not None:
+        ok = False
+        if isinstance(sk, str) and sk.strip() in MOUNTAIN_ORDER:
+            ok = True
+        else:
+            try:
+                float(str(sk).replace("°", ""))
+                ok = True
+            except ValueError:
+                ok = False
+        if not ok:
+            add("❌", "⑦", f"shuikou {sk!r} 无效", "应为二十四山之一（如 '午'）或度数",
+                "给最近十字/丁字路口在屋的方位所压之山；判断不了就删去此字段勿强断")
+    rp = h.get("replace")
+    if rp is not None and not (isinstance(rp, bool) or (isinstance(rp, str) and str(rp).strip().lower() in ("true", "false", "1", "0", "yes", "no", "是", "否", ""))):
+        add("⚠", "②", f"replace {rp!r} 无法识别", "应为 true/false", "更正或删除（默认按度数偏差自动判定）")
+
+    n_err = sum(1 for i in issues if i["级别"] == "❌")
+    n_warn = sum(1 for i in issues if i["级别"] == "⚠")
+    return {"issues": issues, "errors": n_err, "warns": n_warn}
+
+
+def format_validation(v, path="house.json"):
+    L = ["═" * 60, f"录入信息校验：{path}", "═" * 60]
+    if not v["issues"]:
+        L.append("✅ 信息完整，可直接分析")
+    for it in v["issues"]:
+        L.append(f"{it['级别']} [{it['条目']}] {it['标题']}")
+        if it["说明"]:
+            L.append(f"   {it['说明']}")
+        if it["追问"]:
+            L.append(f"   → 追问：{it['追问']}")
+    L.append("")
+    if v["errors"]:
+        L.append(f"⛔ {v['errors']} 项硬伤（❌）须先补齐，⚠ {v['warns']} 项降级（可分析但结论打折）")
+    else:
+        L.append(f"✅ 无硬伤，可进入分析（⚠ {v['warns']} 项降级已列出，向用户声明即可）")
+    L.append("条目号对应 templates/intake-form.md 问诊单：①定运 ②坐向 ③命主 ④户型 ⑤流年 ⑥门主灶 ⑦外部 ⑧日课")
+    return "\n".join(L)
+
+
+# ═══════════════════════════════════════════════════════════════
 #  selftest
 # ═══════════════════════════════════════════════════════════════
 
@@ -1781,6 +2004,36 @@ def selftest():
         check("riche输出含董公与造命", "董公" in r and "造命" in r)
 
     print("")
+    print("── 录入校验 validate-input ──")
+    v_ok = validate_input({"house": {"built_year": 2012, "sitting": "子山午向", "sitting_deg": 178},
+                           "persons": [{"name": "A", "birth": "1990-05-21", "gender": "女"}],
+                           "rooms": [{"name": "大门", "pos": "南"}, {"name": "厨房", "pos": "东"},
+                                     {"name": "卫生间", "pos": "西"}, {"name": "主卧", "pos": "西北"}]})
+    check("完整录入零硬伤", v_ok["errors"] == 0, str([i["标题"] for i in v_ok["issues"] if i["级别"] == "❌"]))
+    v0 = validate_input({"house": {}})
+    check("空录入报缺定运与坐向两硬伤", v0["errors"] >= 2
+          and any("缺少建成年份" in i["标题"] for i in v0["issues"])
+          and any("缺少有效的 sitting" in i["标题"] for i in v0["issues"]))
+    v1 = validate_input({"house": {"built_year": 2012, "sitting": "子山午向", "sitting_deg": "abc"}})
+    check("sitting_deg 非法报硬伤", any("sitting_deg" in i["标题"] for i in v1["issues"] if i["级别"] == "❌"))
+    v2 = validate_input({"house": {"built_year": 2012, "sitting": "子山午向"},
+                         "persons": [{"name": "A", "birth": "1990-05-21"}]})
+    check("缺性别报降级⚠", any("未提供性别" in i["标题"] for i in v2["issues"] if i["级别"] == "⚠"))
+    v3 = validate_input({"house": {"built_year": 2012, "sitting": "子山午向"},
+                         "rooms": [{"name": "厨房", "pos": "正南偏东"}]})
+    check("口语方位可识别并提示缺大门", v3["errors"] == 0
+          and any("未提供「大门」" in i["标题"] for i in v3["issues"]))
+    v4 = validate_input({"house": {"built_year": 2012, "sitting": "子山午向"},
+                         "rooms": [{"name": "大门", "pos": "吉方"}]})
+    check("无法识别方位报硬伤", any("吉方" in i["标题"] for i in v4["issues"] if i["级别"] == "❌"))
+    v5 = validate_input({"house": {"built_year": 2012, "sitting": "子山午向",
+                                   "persons": [{"name": "B", "birth": "1990-05-21", "gender": "女"}]}})
+    check("persons 误入 house 内报层级错误", any("写进了 house" in i["标题"] for i in v5["issues"]))
+    v6 = validate_input({"house": {"sitting": "子山午向"},
+                         "persons": [{"name": "C", "birth": "1990年", "gender": "女"}]})
+    check("出生含汉字给格式提示", any("YYYY-MM-DD" in i["追问"] for i in v6["issues"] if i["级别"] == "❌"))
+
+    print("")
     if errors:
         print(f"❌ {len(errors)} 项失败：{errors}")
         return 1
@@ -1830,6 +2083,10 @@ def main():
     p = sub.add_parser("all", help="完整分析")
     p.add_argument("--house", required=True, help="house.json 路径")
     p.add_argument("--json", help="输出 JSON 到文件")
+
+    p = sub.add_parser("validate-input", help="校验 house.json 录入信息（❌硬伤须补齐 / ⚠降级项声明）")
+    p.add_argument("path", help="house.json 路径")
+    p.add_argument("--json", action="store_true", help="以 JSON 输出校验结果")
 
     p = sub.add_parser("selftest", help="自检")
     args = ap.parse_args()
@@ -1998,6 +2255,24 @@ def main():
         for t in res2["提示"]:
             print(f"  · {t}")
         return
+
+    if args.cmd == "validate-input":
+        try:
+            with open(args.path, encoding="utf-8") as f:
+                house = json.load(f)
+        except FileNotFoundError:
+            print(f"❌ 文件不存在：{args.path}")
+            sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON 解析失败（{args.path} 第 {e.lineno} 行第 {e.colno} 列）：{e.msg}\n"
+                  f"   常见原因：使用了中文引号/逗号、多余尾逗号、漏引号；可对照 templates/house-input.json")
+            sys.exit(1)
+        v = validate_input(house)
+        if args.json:
+            print(json.dumps(v, ensure_ascii=False, indent=2, default=str))
+        else:
+            print(format_validation(v, args.path))
+        sys.exit(1 if v["errors"] else 0)
 
     if args.cmd == "all":
         with open(args.house, encoding="utf-8") as f:

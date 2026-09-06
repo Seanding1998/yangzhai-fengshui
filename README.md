@@ -18,6 +18,7 @@
 | 八宅 | 命卦（立春精确分界，sxtwl）、东西四命、大游年 8×8 矩阵（程序生成+对称性断言）、门主灶三要 |
 | 户型核查 | 缺角/中宫厨厕/穿堂煞/门冲/横梁等结构硬伤清单 + 逐房间落宫判定 |
 | 流年 | 流年紫白盘、太岁/岁破/三煞（三宫扇区）、五黄二黑方位、与宅盘叠加 |
+| 信息采集 | 结构化问诊单（从报告结论反推字段，含九宫格填空与降级路径）+ `validate-input` 录入校验（硬伤/降级清单，条目号映射回问诊单） |
 | 报告 | JSON → 校验 → 自包含 HTML 图文报告（九宫图、命卦卡、房间逐评、结论分级） |
 
 ## 安装
@@ -68,16 +69,17 @@ python scripts/fengshui.py pailong --shuikou 午 --facing 癸 --period 9
 python scripts/fengshui.py riche --date 2026-10-01 --hour 9 --sitting "子山午向" --person 1990-05-21
 
 # 一键完整分析（读 house.json）
+python scripts/fengshui.py validate-input examples/case1-house.json   # 先校验录入信息
 python scripts/fengshui.py all --house examples/case1-house.json --json out.json
 
 # 生成 HTML 报告
 python scripts/generate_report.py --input out.json --output 风水报告.html --validate
 
-# 内置自检（77 项测试向量）
+# 内置自检（122 项测试向量）
 python scripts/fengshui.py selftest
 ```
 
-`house.json` 结构（完整说明见 SKILL.md 第五节）：
+`house.json` 结构（完整说明见 SKILL.md 第五节，空模板见 `templates/house-input.json`）：
 
 ```json
 {
@@ -87,6 +89,15 @@ python scripts/fengshui.py selftest
   "external": ["南面为小区花园，开阔"]
 }
 ```
+
+## 信息采集：问诊单
+
+AI 没有眼睛，房屋信息全靠用户输入，而口语描述（"朝南""缺个角"）结构化程度低、易有歧义。
+本 skill 反向设计了一份[问诊单](templates/intake-form.md)：**从分析报告需要的每个结论反推出必填字段**
+（每项标注"→ 决定报告里的什么"，并给"不知道怎么办"的降级路径，含九宫格填空表）。
+Agent 会把已从描述中提取的项**预填**进问诊单回显请用户确认，用户补空后解析为 `house.json`，
+先跑 `validate-input` 校验——❌ 硬伤（缺定运/坐向无效/方位无法识别/字段放错层级/`person` 笔误等）
+逐条列出处方并映射回问诊单条目号①–⑧定向追问，⚠ 降级项（只给年份/缺性别/无度数等）声明后可继续。
 
 ## 示例报告
 
@@ -105,11 +116,15 @@ python scripts/fengshui.py selftest
 
 ```
 yangzhai-fengshui/
-├── SKILL.md                  # Agent 主流程（信息采集 → 七步分析 → 报告）
-├── references/               # 7 篇领域参考文档（按需加载）
+├── SKILL.md                  # Agent 主流程（问诊单采集 → 七步分析 → 报告）
+├── references/               # 领域参考文档（按需加载）
+├── templates/
+│   ├── intake-form.md        # 结构化问诊单（贴给用户填，含九宫格与降级路径）
+│   └── house-input.json      # house.json 空模板
 ├── scripts/
 │   ├── fengshui.py           # 排盘引擎（纯 Python，sxtwl 可选）
-│   └── generate_report.py    # HTML 报告生成器（内置校验）
+│   ├── generate_report.py    # HTML 报告生成器（内置校验）
+│   └── donggong_data.json    # 董公择日数据
 └── examples/                 # 两个完整案例
 ```
 
