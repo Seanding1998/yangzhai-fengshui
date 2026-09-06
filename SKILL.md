@@ -50,8 +50,8 @@ description: 专业阳宅风水分析：房屋是否适合命主、户型布局�
 ### 第 1 步 · 定运
 读 `references/sanyuan-jiuyun.md`。由建成年份定 7/8/9 运；建成与入住跨运、改建等情况按该文档规则处理并在报告中说明。
 
-### 第 2 步 · 定坐向
-读 `references/zuoxiang-24shan.md`。度数 → 24 山（注意磁偏角与"坐"与"向"的方向差）；判断正向/兼向/替卦/空亡。脚本会自动判定并给出替卦盘。
+### 第 2 步 · 定坐向与立极
+读 `references/zuoxiang-24shan.md`（坐向判定）与 `references/liji-ceju.md`（立极与测量）。**两步读数分工**：定向读数——大门内背靠门面朝外，定坐向排盘；落宫读数——站立极点（方正户型取对角线交点，缺角户型割补后取心）判各功能区落宫；床向/灶口/书桌等房内细部按**房间中心小太极**。度数 → 24 山（注意磁偏角与"坐"与"向"的方向差）；判断正向/兼向/替卦/空亡。脚本会自动判定并给出替卦盘。
 
 ### 第 3 步 · 玄空飞星排盘与格局
 ```bash
@@ -68,7 +68,7 @@ python scripts/fengshui.py dayou <卦名>        # 直接查某卦（宅卦或�
 读 `references/bazhai-dayou.md`。每位命主：命卦、东西四命、八星方位表；与宅卦相配与否；门主灶初步吉凶。
 
 ### 第 5 步 · 户型布局核查
-读 `references/layout-checklist.md`。把各房间归宫后：结构硬伤（缺角/中宫厨厕/穿堂/门冲/横梁…）→ 八宅门主灶 → 玄空逐宫取用。一键命令（先按第二节解析 house.json 并校验）：
+户型来自图纸/照片的，先按 `references/floorplan-reading.md` 解读：定图向（指北针>口述>上北假设，须回显确认）→ 抽尺寸（不成比例显式标记）→ 房间四分法登记（图纸事实/视觉证据/推断/缺失）→ 质检清单 → 回显确认后才排盘。读 `references/layout-checklist.md`。把各房间归宫后：结构硬伤（缺角/中宫厨厕/穿堂/门冲/横梁…，有尺寸标注时**量化缺角**不靠目测）→ 八宅门主灶 → 玄空逐宫取用。一键命令（先按第二节解析 house.json 并校验）：
 ```bash
 python scripts/fengshui.py validate-input house.json   # ❌ 须补齐 / ⚠ 降级声明
 python scripts/fengshui.py all --house house.json [--json out.json]
@@ -158,9 +158,11 @@ python scripts/generate_report.py --input data.json --output 风水报告.html -
 |---|---|
 | references/sanyuan-jiuyun.md | 第 1 步定运；跨运争议 |
 | references/zuoxiang-24shan.md | 第 2 步定坐向；兼向替卦边界 |
+| references/liji-ceju.md | 第 2 步立极与测量：两步读数、三层太极、缺角户型立极、干扰规避 |
 | references/xuankong-feixing.md | 第 3 步读盘；组合断诀 |
 | references/bazhai-dayou.md | 第 4 步命卦/宅卦/门主灶 |
 | references/layout-checklist.md | 第 5 步户型核查 |
+| references/floorplan-reading.md | 第 5 步图纸/照片解读：图向判定、尺寸抽取、四分法、质检清单 |
 | references/waixing-shasha.md | 第 7 步外部环境 |
 | references/pailong-shoushan.md | 第 7 步排龙诀；第 3 步收山出煞 |
 | references/rique-zhai.md | 第 8 步日课择吉 |
