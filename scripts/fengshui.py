@@ -138,6 +138,10 @@ ZHI_DIR = {"子": "北", "午": "南", "卯": "东", "酉": "西",
 DIZHI_PALACE = {"子": "坎", "丑": "艮", "寅": "艮", "卯": "震", "辰": "巽", "巳": "巽",
                 "午": "离", "未": "坤", "申": "坤", "酉": "兑", "戌": "乾", "亥": "乾"}
 
+# 天干 → 后天八卦宫（四正；戊己属中宫/立极点，用于吕氏岁月应期干支双通道）
+GAN_PALACE = {"甲": "震", "乙": "震", "丙": "离", "丁": "离",
+              "庚": "兑", "辛": "兑", "壬": "坎", "癸": "坎"}
+
 
 # ═══════════════════════════════════════════════════════════════
 #  二十四山 / 坐向
@@ -1159,6 +1163,68 @@ def render_dayou(layout, title=""):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  吕氏砂水应期体系（吕文艺《吕氏风水学》，面授连载公开部分）
+#  来源：daoisms.com.cn 78642/78649/78677/78704/78713/22818（详见 references/lvshi-shashui.md）
+# ═══════════════════════════════════════════════════════════════
+
+# 二十四山砂水吉凶标准（吕氏修正版金锁玉关）
+LV_SHA_JI = ["壬", "癸", "甲", "乙", "巽", "巳", "坤", "申"]          # 有砂吉，有水凶
+LV_SHUI_JI = ["丙", "丁", "庚", "辛", "艮", "寅", "乾"]               # 有水吉，有砂凶
+LV_JU_XIONG = ["子", "午", "卯", "酉", "辰", "戌", "丑", "未", "亥"]  # 砂水皆凶，宜顺其自然
+# 八宫粗断：东方/北方/东南/西南有砂吉；南方/西方/东北/西北有水吉
+LV_PALACE_SHA_JI = ["震", "坎", "巽", "坤"]
+LV_PALACE_SHUI_JI = ["离", "兑", "艮", "乾"]
+
+LV_DUI_GONG = [("子", "午"), ("卯", "酉"), ("辰", "戌"), ("丑", "未"),
+               ("寅", "申"), ("巳", "亥"), ("丙", "壬"), ("癸", "丁"),
+               ("甲", "庚"), ("乙", "辛"), ("坤", "艮"), ("乾", "巽")]
+
+# 各房人丁定位（男丁公开部分）：主位定六七分，从位三四分；从位能量特大可"反从为主"
+LV_RENDING_MALE = {1: ("震", "艮"), 2: ("坎", "震"), 3: ("艮", "乾")}
+# 老四/老七同老大，老五/老八同老二，老六/老九同老三
+LV_FATHER_NOTE = "父亲（爷爷）：西北乾宫三山（戌乾亥）各占 1/3"
+
+
+def lvshi_rank_palace(rank):
+    """男丁排行 → (主位宫, 从位宫)。四至九名按老三循环（1/4/7同、2/5/8同、3/6/9同）。"""
+    return LV_RENDING_MALE[((rank - 1) % 3) + 1]
+
+
+def lvshi_year_channels(gan, zhi):
+    """岁月应期"干支一起断"：天干宫位=表面现象，地支宫位=实质情况。
+    戊/己年若立极点（原点）上有设置之物，表面不顺利，实质由支宫砂水定。"""
+    out = {"干": gan, "干宫": None, "支": zhi, "支宫": None, "戊己点": False}
+    if gan in GAN_PALACE:
+        out["干宫"] = GAN_PALACE[gan]
+    elif gan in ("戊", "己"):
+        out["干宫"] = "中"
+        out["戊己点"] = True
+    out["支宫"] = DIZHI_PALACE.get(zhi)
+    return out
+
+
+def lvshi_shashui_verdict(mountain):
+    """山 → 吕氏砂水吉凶定性。"""
+    if mountain in LV_SHA_JI:
+        return "有砂吉，有水凶"
+    if mountain in LV_SHUI_JI:
+        return "有水吉，有砂凶"
+    if mountain in LV_JU_XIONG:
+        return "砂水皆凶（宜顺其自然，不可有人为设置之物）"
+    return None
+
+
+def lvshi_duigong(m):
+    """山 → 对宫山（24 山 12 组对宫组合）。"""
+    for a, b in LV_DUI_GONG:
+        if m == a:
+            return b
+        if m == b:
+            return a
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
 #  完整分析
 # ═══════════════════════════════════════════════════════════════
 
@@ -1262,6 +1328,10 @@ def analyze_house(house, current_year=2026):
             warnings.append(f"度数 {deg}° 落在{m_at}山附近，与声明的坐{zuo}向{xiang}明显不符；已忽略度数、按声明坐向排盘，请核对坐向后再排")
     if deviation is not None:
         ade = abs(deviation)
+        dist_boundary = 7.5 - ade  # 距最近山界（两山交界线）的度数
+        if dist_boundary < 1.5:
+            warnings.append(f"坐向度数距最近山界仅 {dist_boundary:.1f}°，处于界线敏感区：兼向/替卦判定对 "
+                            f"1° 量级误差敏感，务必复测罗盘（多点多轮取平均）")
         # 兼向分界：沈氏/中州派"每山正中九度"为下卦（±4.5°），其余用替卦
         if ade <= 4.5:
             mode = "下卦（正向）"
@@ -1314,7 +1384,8 @@ def analyze_house(house, current_year=2026):
         "坐山三元龙": mountain_yuan(zuo), "向山三元龙": mountain_yuan(xiang),
         "坐山阴阳": mountain_yinyang(zuo), "向山阴阳": mountain_yinyang(xiang),
         "坐山宫": mountain_palace(zuo), "向首宫": mountain_palace(xiang),
-        "度数偏差": deviation, "排盘方式": mode, "替卦": replace,
+        "度数偏差": deviation, "距最近山界": None if deviation is None else round(7.5 - abs(deviation), 1),
+        "排盘方式": mode, "替卦": replace,
         "warnings": warnings,
     }
     result["feixing"] = {"charts": charts, "格局": geju, "格局细节": geju_detail,
@@ -1420,7 +1491,8 @@ def format_result(res):
     L.append(f"坐向：坐{st['坐山']}（{st['坐山三元龙']}，{st['坐山阴阳']}）朝{st['向山']}，"
              f"坐{st['坐山宫']}宫向{st['向首宫']}宫")
     if st["度数偏差"] is not None:
-        L.append(f"坐向度数偏差：{st['度数偏差']:+.1f}° → {st['排盘方式']}")
+        L.append(f"坐向度数偏差：{st['度数偏差']:+.1f}° → {st['排盘方式']}"
+                 f"（距最近山界 {st['距最近山界']}°）")
     for w in st["warnings"]:
         L.append(f"  ⚠ {w}")
     fx = res["feixing"]
@@ -2034,6 +2106,42 @@ def selftest():
     check("出生含汉字给格式提示", any("YYYY-MM-DD" in i["追问"] for i in v6["issues"] if i["级别"] == "❌"))
 
     print("")
+    print("── 三元龙阴阳恒等式 / 吕氏砂水应期 ──")
+    check("地元龙：甲庚壬丙皆阳、辰戌丑未皆阴",
+          all(mountain_yinyang(m) == "阳" for m in "甲庚壬丙")
+          and all(mountain_yinyang(m) == "阴" for m in "辰戌丑未"))
+    check("天元龙：子午卯酉皆阴、乾坤艮巽皆阳",
+          all(mountain_yinyang(m) == "阴" for m in "子午卯酉")
+          and all(mountain_yinyang(m) == "阳" for m in "乾坤艮巽"))
+    check("人元龙：寅申巳亥皆阳、乙辛丁癸皆阴，且与天元同阴阳",
+          all(mountain_yinyang(m) == "阳" for m in "寅申巳亥")
+          and all(mountain_yinyang(m) == "阴" for m in "乙辛丁癸")
+          and all(mountain_yinyang(tri[2]) == mountain_yinyang(tri[1])
+                  for tri in PALACE_TRIPLETS.values()))
+    check("三元龙各恰 8 山且无遗漏",
+          sorted(m for m in MOUNTAIN_ORDER if mountain_yuan(m) == "地元龙") == sorted("甲庚壬丙辰戌丑未")
+          and sorted(m for m in MOUNTAIN_ORDER if mountain_yuan(m) == "天元龙") == sorted("子午卯酉乾坤艮巽")
+          and sorted(m for m in MOUNTAIN_ORDER if mountain_yuan(m) == "人元龙") == sorted("寅申巳亥乙辛丁癸"))
+    check("吕氏24山砂水表完备互斥（8+7+9=24）",
+          len(LV_SHA_JI) == 8 and len(LV_SHUI_JI) == 7 and len(LV_JU_XIONG) == 9
+          and set(LV_SHA_JI) | set(LV_SHUI_JI) | set(LV_JU_XIONG) == set(MOUNTAIN_ORDER)
+          and not (set(LV_SHA_JI) & set(LV_SHUI_JI)))
+    check("吕氏对宫12组两两对望", len(LV_DUI_GONG) == 12
+          and all(opposite_mountain(a) == b and opposite_mountain(b) == a for a, b in LV_DUI_GONG))
+    check("吕氏人丁定位：老1东/老2北/老3东北主位，4-9循环",
+          lvshi_rank_palace(1) == ("震", "艮") and lvshi_rank_palace(2) == ("坎", "震")
+          and lvshi_rank_palace(3) == ("艮", "乾") and lvshi_rank_palace(4) == ("震", "艮")
+          and lvshi_rank_palace(9) == ("艮", "乾"))
+    ch1 = lvshi_year_channels("辛", "巳")
+    check("岁月应期干支双通道：辛→兑(表面)、巳→巽(实质)",
+          ch1["干宫"] == "兑" and ch1["支宫"] == "巽" and not ch1["戊己点"])
+    ch2 = lvshi_year_channels("戊", "子")
+    check("戊年触发戊己点规则", ch2["戊己点"] is True and ch2["干宫"] == "中" and ch2["支宫"] == "坎")
+    check("吕氏坐山定性抽查", lvshi_shashui_verdict("壬") == "有砂吉，有水凶"
+          and lvshi_shashui_verdict("庚") == "有水吉，有砂凶"
+          and lvshi_shashui_verdict("午") == "砂水皆凶（宜顺其自然，不可有人为设置之物）")
+
+    print("")
     if errors:
         print(f"❌ {len(errors)} 项失败：{errors}")
         return 1
@@ -2087,6 +2195,12 @@ def main():
     p = sub.add_parser("validate-input", help="校验 house.json 录入信息（❌硬伤须补齐 / ⚠降级项声明）")
     p.add_argument("path", help="house.json 路径")
     p.add_argument("--json", action="store_true", help="以 JSON 输出校验结果")
+
+    p = sub.add_parser("lvsha", help="吕氏砂水应期体系（吕氏风水·面授公开部分）")
+    p.add_argument("--year-gz", help="流年干支，如 辛巳（岁月应期：干宫=表面，支宫=实质）")
+    p.add_argument("--mountain", help="查某山的砂水吉凶与对宫组合，如 壬")
+    p.add_argument("--rank", type=int, help="男丁排行 1-9（查人丁定位主从位）")
+    p.add_argument("--meters", type=float, help="某方砂水距宅距离（米），按约50米/年推距离应期")
 
     p = sub.add_parser("selftest", help="自检")
     args = ap.parse_args()
@@ -2254,6 +2368,49 @@ def main():
                     print("  格局亮点：" + "；".join(zm["格局亮点"]))
         for t in res2["提示"]:
             print(f"  · {t}")
+        return
+
+    if args.cmd == "lvsha":
+        print("吕氏砂水应期体系（吕文艺《吕氏风水学》面授连载公开部分；民俗传统，供参考）")
+        print("  八宫粗断：东/北/东南/西南 有砂吉有水凶；南/西/东北/西北 有水吉有砂凶")
+        print(f"  二十四山：有砂吉{''.join(LV_SHA_JI)}；有水吉{''.join(LV_SHUI_JI)}；"
+              f"砂水皆凶{''.join(LV_JU_XIONG)}（宜顺其自然）")
+        any_out = False
+        if args.mountain:
+            if args.mountain not in MOUNTAIN_ORDER:
+                print(f"❌ 山名无效：{args.mountain}")
+                sys.exit(1)
+            dg = lvshi_duigong(args.mountain)
+            print(f"  ◈ {args.mountain}山：{lvshi_shashui_verdict(args.mountain)}；"
+                  f"对宫 {dg}（能量大不必看对宫；能量小须比对宫；主位凶砂+对宫吉水=大凶/界气罩；"
+                  f"对宫同砂或同水=绝地）")
+            any_out = True
+        if args.year_gz:
+            if len(args.year_gz) != 2 or args.year_gz[0] not in GAN_PALACE and args.year_gz[0] not in "戊己" \
+                    or args.year_gz[1] not in DIZHI_PALACE:
+                print(f"❌ 干支无效：{args.year_gz}（如 辛巳）")
+                sys.exit(1)
+            ch = lvshi_year_channels(args.year_gz[0], args.year_gz[1])
+            gd = GUA_DIR.get(ch["干宫"], "中宫/立极点") if ch["干宫"] else "—"
+            zd = GUA_DIR.get(ch["支宫"], "—") if ch["支宫"] else "—"
+            print(f"  ◈ 流年{args.year_gz}：天干{ch['干']}→{ch['干宫']}宫（{gd}）＝表面现象；"
+                  f"地支{ch['支']}→{ch['支宫']}宫（{zd}）＝实质情况")
+            if ch["戊己点"]:
+                print("    （戊/己年：立极点上有设置之物则表面不顺利，实质由支宫砂水定）")
+            print("    两宫砂水吉凶一致→吉凶大；矛盾→表面与实质分开断；再按建宅年数叠加大局同干支砂水")
+            any_out = True
+        if args.rank:
+            zhu, cong = lvshi_rank_palace(args.rank)
+            print(f"  ◈ 老大（男）老{args.rank}：主位{zhu}宫（{GUA_DIR[zhu]}）定六七分，"
+                  f"从位{cong}宫（{GUA_DIR[cong]}）定三四分（从位能量特大可反从为主）；{LV_FATHER_NOTE}")
+            print("    注：砂外之水、水外之砂主事（以远近分层）；女性成员定位公开资料未载，勿强断")
+            any_out = True
+        if args.meters is not None:
+            print(f"  ◈ 距离应期：距宅 {args.meters:g} 米 ≈ 建宅后约 {args.meters/50.0:.1f} 年应事"
+                  "（约 50 米/年向外推进，山区/平原速率有差异需灵活）")
+            any_out = True
+        if not any_out:
+            print("（未给 --mountain/--year-gz/--rank/--meters，仅列标准表）")
         return
 
     if args.cmd == "validate-input":

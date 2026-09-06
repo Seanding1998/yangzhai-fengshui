@@ -11,8 +11,10 @@ description: 专业阳宅风水分析：房屋是否适合命主、户型布局�
 2. 每完成一步，先向用户回读关键盘面（坐向、运、格局、命卦），确认无误再进入下一步。
 3. 涉及流派差异（立春/公历分界、门向/阳向、兼向分界等）时**两说并存**，标注差异，不强行统一。
 4. 所有吉凶结论必须给出依据（星、方位、规则条款）；化解建议注明"民俗传统做法，供参考"。
-5. 结束时附一句免责声明：本分析属传统民俗文化研究，仅供参考娱乐，不构成任何人生、医疗、投资决策依据。
-6. 排盘命令的运行方式：`python <本skill目录>/scripts/fengshui.py <子命令>`（Windows 下若 `python` 不可用改用 `py`）。
+5. **措辞负面清单**：不说"命中注定"、不说"必须摆 XX 才能化解"、不用"绝地/夭折"等原话恐吓（引用激烈断语时中性转述，如"传统认为该组合属重灾格局"）；凶局未到明显发作程度时只说"存在隐患"。
+6. 所有吉凶结论必须给出依据（星、方位、规则条款）之外，报告收尾附**未覆盖项**声明：本次分析没做到/做不到的部分（如"外部环境为口述未实地勘察""坐向为口述无度数""吕氏天时系统定性表未公开未收录"）。
+7. 结束时附一句免责声明：本分析属传统民俗文化研究，仅供参考娱乐，不构成任何人生、医疗、投资决策依据。
+8. 排盘命令的运行方式：`python <本skill目录>/scripts/fengshui.py <子命令>`（Windows 下若 `python` 不可用改用 `py`）。
 
 ## 一、输出分流（先分流，再动手）
 
@@ -81,7 +83,7 @@ python scripts/fengshui.py annual <年份>
 读 `references/liunian-feixing.md`。列当年五黄/二黑/三煞/岁破/文昌/财气方，映射到用户家中具体房间，并说明与宅盘的引动关系。
 
 ### 第 7 步 · 外部形煞与排龙（有描述/水口信息才做）
-读 `references/waixing-shasha.md`。按强度分级评估形煞，落宫引动，给出"挡避优先"的建议。
+读 `references/waixing-shasha.md`。按强度分级评估形煞，落宫引动，给出"挡避优先"的建议；外部环境逐方位描述齐备时，可**选做吕氏砂水断**（`python scripts/fengshui.py lvsha --mountain 山名 --year-gz 流年干支 --rank 排行 --meters 距离`，二十四山砂水吉凶/对宫绝地/干支双通道应期，读 `references/lvshi-shashui.md`），结论标注"吕氏体系"，与他派冲突两说并存。
 若用户提供**水口**信息（最近的十字/丁字路口方位），加排排龙诀（中州派，读 `references/pailong-shoushan.md`）：
 ```bash
 python scripts/fengshui.py pailong --shuikou <水口方的山> --facing <向山> --period <运>
@@ -105,7 +107,8 @@ python scripts/fengshui.py riche --date 2026-10-01 --hour 9 --sitting "子山午
 5. **流年提醒**：当年凶方吉方落到具体房间。
 6. **形煞评估**（如有）。
 7. **综合结论**：房子是否适合命主，用三档（适合 / 有条件适合（列条件与调整项） / 须谨慎（列硬伤））+ 可执行调整清单（按成本排序：摆放 ≤ 家具移位 ≤ 装修改造）。
-8. 免责声明。
+8. **未覆盖项**：本次分析没做到/做不到的部分如实列出（外部环境未实地勘察、坐向无度数、吕氏天时系统定性表未公开等）。
+9. 免责声明。
 
 需要交付文件时，生成 HTML 报告（见第四节）。
 
@@ -164,6 +167,7 @@ python scripts/generate_report.py --input data.json --output 风水报告.html -
 | references/layout-checklist.md | 第 5 步户型核查 |
 | references/floorplan-reading.md | 第 5 步图纸/照片解读：图向判定、尺寸抽取、四分法、质检清单 |
 | references/waixing-shasha.md | 第 7 步外部环境 |
+| references/lvshi-shashui.md | 第 7 步吕氏砂水断：24 山砂水吉凶、对宫绝地、人丁定位、应期双系统 |
 | references/pailong-shoushan.md | 第 7 步排龙诀；第 3 步收山出煞 |
 | references/rique-zhai.md | 第 8 步日课择吉 |
 | references/liunian-feixing.md | 第 6 步流年叠加 |
